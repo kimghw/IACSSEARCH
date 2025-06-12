@@ -40,13 +40,7 @@
 - **의존성**: 1.1 완료
 - **우선순위**: 최고
 
-#### 1.3 공통 스키마 정의
-- **작업**: 모듈간 공유할 데이터 모델 정의
-- **산출물**:
-  - `infra/core/base_schemas.py`: BaseModel, 공통 Enum 정의
-  - 각 모듈별 `schema.py` 기본 구조 생성
-- **의존성**: 1.2 완료
-- **우선순위**: 최고
+#### 1.3 공통 스키마 정의(사용하지 않음)
 
 #### 1.4 로깅 설정
 - **작업**: 기본 로깅 구성 (OpenTelemetry는 선택사항)
@@ -70,22 +64,10 @@
 - **우선순위**: 높음
 - **검증**: `/tests/scenario/search_service_scenario.py`
 
-### Phase 3: 데이터 수집 및 처리 모듈 (Data Ingestion)
+### Phase 3: 데이터 처리 모듈 (Data Ingestion)
 **목표**: 이메일 수집과 기본 처리 파이프라인 구축
 
-#### 3.1 Email 모듈 (이메일 수집) - UC-2
-- **작업**: 이메일 수집 및 임베딩 처리
-- **산출물**:
-  - `modules/email/schema.py`: EmailData, RawEmail 모델
-  - `modules/email/repository.py`: Graph API 연동, MongoDB 저장
-  - `modules/email/email_collector.py`: 이메일 수집 서비스
-  - `modules/email/email_embedding.py`: 임베딩 생성 및 Qdrant 저장
-  - `modules/email/orchestrator.py`: 이메일 처리 오케스트레이터
-- **의존성**: Phase 1 완료
-- **우선순위**: 최고
-- **검증**: `/tests/scenario/email_collection_scenario.py`
-
-#### 3.2 Thread 모듈 (스레드 관리) - UC-3
+#### 3.1 Thread 모듈 (스레드 관리) - UC-2
 - **작업**: 제목 프리픽스 기반 스레드 분류 및 관리
 - **산출물**:
   - `modules/thread/schema.py`: ThreadData, ThreadStatus 모델
@@ -100,7 +82,7 @@
 ### Phase 4: 참여자 및 상태 관리 모듈 (Participant Management)
 **목표**: 참여자 추적 및 상태 관리 시스템 구축
 
-#### 4.1 Participant 모듈 (참여자 관리) - UC-4
+#### 4.1 Participant 모듈 (참여자 관리) - UC-3
 - **작업**: 참여자 역할 매핑 및 상태 추적
 - **산출물**:
   - `modules/participant/schema.py`: ParticipantData, ParticipantRole 모델
@@ -112,7 +94,7 @@
 - **우선순위**: 높음
 - **검증**: `/tests/scenario/participant_tracking_scenario.py`
 
-#### 4.2 Deadline 모듈 (마감일 관리) - UC-5
+#### 4.2 Deadline 모듈 (마감일 관리) - UC-4
 - **작업**: 마감일 모니터링 및 기본 알림 시스템
 - **산출물**:
   - `modules/deadline/schema.py`: DeadlinePolicy, OverdueParticipant 모델
@@ -127,7 +109,7 @@
 ### Phase 5: 분석 및 완료 처리 모듈 (Analysis & Completion)
 **목표**: 완료 판정 및 이슈 분석 기능 구현
 
-#### 5.1 Completion 모듈 (완료 판정) - UC-6
+#### 5.1 Completion 모듈 (완료 판정) - UC-5
 - **작업**: 스레드 완료 조건 판정 및 처리
 - **산출물**:
   - `modules/completion/schema.py`: CompletionResult, SentimentResult 모델
@@ -139,7 +121,7 @@
 - **우선순위**: 보통
 - **검증**: `/tests/scenario/completion_detection_scenario.py`
 
-#### 5.2 Issue 모듈 (이슈 분석) - UC-7
+#### 5.2 Issue 모듈 (이슈 분석) - UC-6
 - **작업**: 의미적 이슈 추출 및 태깅
 - **산출물**:
   - `modules/issue/schema.py`: IssueTag, SentimentType 모델
@@ -154,7 +136,7 @@
 ### Phase 6: 사용자 인터페이스 모듈 (User Interface)
 **목표**: 대시보드, 검증 기능 구현
 
-#### 6.1 Dashboard 모듈 (대시보드) - UC-8
+#### 6.1 Dashboard 모듈 (대시보드) - UC-7
 - **작업**: 기본 대시보드 및 검색 인터페이스
 - **산출물**:
   - `modules/dashboard/schema.py`: DashboardData, SearchQuery 모델
@@ -166,7 +148,7 @@
 - **우선순위**: 보통
 - **검증**: `/tests/scenario/dashboard_interface_scenario.py`
 
-#### 6.2 Validation 모듈 (형식 검사) - UC-9
+#### 6.2 Validation 모듈 (형식 검사) - UC-8
 - **작업**: 이메일 형식 검증 및 기본 정정 제안
 - **산출물**:
   - `modules/validation/schema.py`: ValidationResult, Correction 모델

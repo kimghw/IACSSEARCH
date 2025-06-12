@@ -2,7 +2,7 @@
 IACSRAG Qdrant 벡터 저장소 연결 및 작업 관리
 
 Qdrant 클라이언트 연결, 세션 관리 및 기본적인 벡터 작업 제공
-infra/core 아키텍쳐 지침: 연결, 초기화, 설정 및 공통 벡터 작업 담당
+infra 아키텍쳐 지침: 연결, 초기화, 설정 및 공통 벡터 작업 담당
 """
 
 from typing import Optional, List, Dict, Any, Tuple

@@ -56,14 +56,7 @@ iacsrag/
 │   │   ├── search_service.py   # UC-1: Qdrant 벡터 검색
 │   │   ├── search_query.py     # 질의 처리
 │   │   ├── repository.py       # Qdrant/MongoDB 연동
-│   │   └── schema.py          # Pydantic 모델
-│   ├── email/                  # 이메일 처리 모듈
-│   │   ├── __init__.py
-│   │   ├── orchestrator.py     # 이메일 처리 오케스트레이터
-│   │   ├── email_collector.py  # UC-2: 이메일 수집
-│   │   ├── email_embedding.py  # 임베딩 처리
-│   │   ├── repository.py       # DB/API 처리
-│   │   └── schema.py          # Pydantic 모델
+│   │   └── schema.py           # Pydantic 모델
 │   ├── thread/                 # 스레드 관리 모듈
 │   │   ├── __init__.py
 │   │   ├── orchestrator.py     # 스레드 처리 오케스트레이터
