@@ -25,15 +25,15 @@ class CacheKey:
     
     # 스레드 관련 캐시 키
     THREAD_STATUS_CACHE = "thread:status:{thread_id}"
-    THREAD_PARTICIPANTS = "thread:participants:{thread_id}"
+    THREAD_memberS = "thread:members:{thread_id}"
     
     # 참여자 관련 캐시 키
-    PARTICIPANT_STATUS = "participant:status:{email}:{thread_id}"
-    PARTICIPANT_ROLE_MAPPING = "participant:role:{email}"
+    member_STATUS = "member:status:{email}:{thread_id}"
+    member_ROLE_MAPPING = "member:role:{email}"
     
     # 마감일 관련 캐시 키
     DEADLINE_NOTIFICATIONS = "deadline:notifications:{thread_id}"
-    OVERDUE_PARTICIPANTS = "deadline:overdue"
+    OVERDUE_memberS = "deadline:overdue"
     
     # 이슈 분석 관련 캐시 키
     ISSUE_TAGS_CACHE = "issue:tags:{email_id}"
@@ -213,9 +213,9 @@ class CacheService:
     
     # === 참여자 상태 관리 ===
     
-    async def cache_set_participant_status(self, email: str, thread_id: str, status: str, ttl: int = 3600) -> bool:
+    async def cache_set_member_status(self, email: str, thread_id: str, status: str, ttl: int = 3600) -> bool:
         """참여자 상태 캐시 저장"""
-        key = CacheKey.PARTICIPANT_STATUS.format(email=email, thread_id=thread_id)
+        key = CacheKey.member_STATUS.format(email=email, thread_id=thread_id)
         status_data = {
             "status": status,
             "email": email,
@@ -224,9 +224,9 @@ class CacheService:
         }
         return await self.cache_set(key, status_data, ttl)
     
-    async def cache_get_participant_status(self, email: str, thread_id: str) -> Optional[str]:
+    async def cache_get_member_status(self, email: str, thread_id: str) -> Optional[str]:
         """참여자 상태 캐시 조회"""
-        key = CacheKey.PARTICIPANT_STATUS.format(email=email, thread_id=thread_id)
+        key = CacheKey.member_STATUS.format(email=email, thread_id=thread_id)
         data = await self.cache_get(key)
         return data.get("status") if data else None
     

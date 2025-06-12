@@ -67,11 +67,11 @@ class Settings(BaseSettings):
     thread_cleanup_interval: int = Field(default=3600, description="스레드 정리 간격(초)")
     
     # 참여자 관리 설정
-    participant_unknown_domain_handling: str = Field(
+    member_unknown_domain_handling: str = Field(
         default="flag",
         description="미등록 도메인 처리 방식"
     )
-    participant_role_cache_ttl: int = Field(default=3600, description="참여자 역할 캐시 TTL(초)")
+    member_role_cache_ttl: int = Field(default=3600, description="참여자 역할 캐시 TTL(초)")
     
     # 마감일 관리 설정
     deadline_default_days: int = Field(default=7, description="기본 마감일(일)")

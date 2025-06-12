@@ -42,12 +42,10 @@ Qdrant 벡터 DB와 이메일 메타데이터를 활용한 "의장-멤버 코레
 ```
 iacsrag/
 ├── infra/
-│   ├── core/                    # 공통 인프라
-│   │   ├── __init__.py
-│   │   ├── database.py          # DB 연결 관리
-│   │   ├── vector_store.py      # Qdrant 연결 관리
-│   │   ├── cache.py            # Redis 캐시 관리
-│   │   └── config.py           # 전역 설정
+│   ├── database.py          # DB 연결 관리
+│   ├── vector_store.py      # Qdrant 연결 관리
+│   ├── cache.py            # Redis 캐시 관리
+│   └── config.py           # 전역 설정
 │   └── docker/                 # 도커 설정
 ├── modules/
 │   ├── search/                 # 벡터 검색 모듈
@@ -64,11 +62,11 @@ iacsrag/
 │   │   ├── thread_manager.py   # 스레드 생성/관리
 │   │   ├── repository.py
 │   │   └── schema.py
-│   ├── participant/            # 참여자 관리 모듈
+│   ├── member/            # 참여자 관리 모듈
 │   │   ├── __init__.py
 │   │   ├── orchestrator.py     # 참여자 처리 오케스트레이터
-│   │   ├── participant_tracker.py # UC-3: 참여자 추적
-│   │   ├── participant_mapper.py # 역할 매핑
+│   │   ├── member_tracker.py # UC-3: 참여자 추적
+│   │   ├── member_mapper.py # 역할 매핑
 │   │   ├── repository.py
 │   │   └── schema.py
 │   ├── deadline/               # 마감일 관리 모듈
@@ -151,12 +149,6 @@ class SearchQueryProcessor:
 
 **클래스 설계:**
 ```python
-# email/email_collector.py
-class EmailCollectorService:
-    def __init__(self, repo: EmailRepository, cache: CacheService)
-    async def email_coll_collect_emails(self) -> List[EmailData]
-    async def _email_coll_process_single_email(self, email: RawEmail) -> EmailData
-    async def _email_coll_validate_email_format(self, email: RawEmail) -> bool
 
 # email/email_embedding.py  
 class EmailEmbeddingService:
@@ -167,7 +159,7 @@ class EmailEmbeddingService:
 ```
 
 **데이터 흐름:**
-1. Microsoft Graph API → Raw Email Data
+1. Qudrant Database→ Raw Email Data
 2. Email Validation & Parsing → Structured EmailData
 3. Text Extraction (Subject + Body) → TextParts
 4. Embedding Generation → MultiVector (subject, body)
@@ -198,22 +190,22 @@ class ThreadManagerService:
 - 프리픽스가 없는 경우 "UNKNOWN" 스레드로 분류
 - 스레드 상태: ACTIVE, PENDING, CLOSED, EXPIRED
 
-### 3.3 UC-3: 참여자 추적 (participant 모듈)
+### 3.3 UC-3: 참여자 추적 (member 모듈)
 
 **클래스 설계:**
 ```python
-# participant/participant_tracker.py
-class ParticipantTrackerService:
-    def __init__(self, repo: ParticipantRepository, cache: CacheService)
-    async def participant_trkr_update_participation_map(self, thread_id: str, email: EmailData)
-    async def participant_trkr_resolve_participant_role(self, email_address: str) -> ParticipantRole
-    async def _participant_trkr_mark_participant_active(self, thread_id: str, participant_id: str)
+# member/member_tracker.py
+class memberTrackerService:
+    def __init__(self, repo: memberRepository, cache: CacheService)
+    async def member_trkr_update_participation_map(self, thread_id: str, email: EmailData)
+    async def member_trkr_resolve_member_role(self, email_address: str) -> memberRole
+    async def _member_trkr_mark_member_active(self, thread_id: str, member_id: str)
 
-# participant/participant_mapper.py  
-class ParticipantMapperService:
-    def __init__(self, repo: ParticipantRepository, cache: CacheService)
-    async def participant_mapr_get_organization_mapping(self) -> Dict[str, ParticipantRole]
-    async def participant_mapr_update_role_mapping(self, email: str, role: ParticipantRole)
+# member/member_mapper.py  
+class memberMapperService:
+    def __init__(self, repo: memberRepository, cache: CacheService)
+    async def member_mapr_get_organization_mapping(self) -> Dict[str, memberRole]
+    async def member_mapr_update_role_mapping(self, email: str, role: memberRole)
 ```
 
 **참여자 상태:**
@@ -229,14 +221,14 @@ class ParticipantMapperService:
 # deadline/deadline_watcher.py
 class DeadlineWatcherService:
     def __init__(self, repo: DeadlineRepository, notifier: DeadlineNotifierService, cache: CacheService)
-    async def deadline_wtch_check_overdue_participants(self) -> List[OverdueParticipant]
+    async def deadline_wtch_check_overdue_members(self) -> List[Overduemember]
     async def deadline_wtch_calculate_deadline(self, thread: ThreadData) -> datetime
     async def _deadline_wtch_get_deadline_policy(self, thread_type: str) -> DeadlinePolicy
 
 # deadline/deadline_notifier.py
 class DeadlineNotifierService:
     def __init__(self, email_client: EmailClient)
-    async def deadline_ntfy_send_reminder_email(self, participant: OverdueParticipant)
+    async def deadline_ntfy_send_reminder_email(self, member: Overduemember)
     async def deadline_ntfy_log_notification(self, notification: NotificationLog)
 ```
 
@@ -254,7 +246,7 @@ class CompletionEngineService:
     def __init__(self, repo: CompletionRepository, cache: CacheService)
     async def completion_engn_check_completion_conditions(self, thread_id: str) -> CompletionResult
     async def completion_engn_process_chair_final_email(self, email: EmailData) -> bool
-    async def _completion_engn_verify_all_participants_responded(self, thread_id: str) -> bool
+    async def _completion_engn_verify_all_members_responded(self, thread_id: str) -> bool
 
 # completion/completion_detector.py
 class CompletionDetectorService:
@@ -369,17 +361,17 @@ class ThreadData(BaseModel):
     subjectprefix: str
     status: ThreadStatus
     chair_id: str
-    participants: List[ParticipantData]
+    members: List[memberData]
     deadline: datetime
     email_count: int = 0
     created_at: datetime
     closed_at: Optional[datetime]
 
-class ParticipantData(BaseModel):
+class memberData(BaseModel):
     email_address: str
     name: str
-    role: ParticipantRole
-    status: ParticipantStatus
+    role: memberRole
+    status: memberStatus
     last_response_date: Optional[datetime]
     notification_count: int = 0
 ```
@@ -409,7 +401,7 @@ class ProcessingStatus(str, Enum):
     PENDING = "pending"
     EMBEDDING_CREATED = "embedding_created"
     THREAD_ASSIGNED = "thread_assigned"
-    PARTICIPANTS_MAPPED = "participants_mapped"
+    memberS_MAPPED = "members_mapped"
     ISSUES_ANALYZED = "issues_analyzed"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -446,7 +438,7 @@ class MainOrchestrator:
         thread_data = await self.thread_orchestrator.classify_and_assign(email_data)
         
         # 3. 참여자 상태 업데이트
-        participants = await self.participant_orchestrator.update_participants(thread_data, email_data)
+        members = await self.member_orchestrator.update_members(thread_data, email_data)
         
         # 4. 마감일 확인 및 알림
         await self.deadline_orchestrator.check_deadlines(thread_data.id)

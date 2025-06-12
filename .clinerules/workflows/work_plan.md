@@ -3,8 +3,8 @@
 ## 1. 작업 개요
 
 ### 1.1 프로젝트 범위
-- 8개 유즈케이스 구현 (UC-1 ~ UC-8)
-- 8개 모듈 개발 (emil, thrd, part, dlne, comp, isue, dash, lint)
+- 9개 유즈케이스 구현 (UC-1 ~ UC-8, UC-1은 독립 검색 서비스)
+- 9개 모듈 개발 (search, email, thread, member, deadline, completion, issue, dashboard, validation)
 - 인프라 및 공통 컴포넌트 구축
 - 시나리오 테스트 및 기본 배포 준비
 
@@ -31,7 +31,7 @@
 - **우선순위**: 최고
 
 #### 1.2 인프라 코어 모듈 구현
-- **작업**: `infra/core/` 패키지 구현
+- **작업**: `infra` 패키지 구현
 - **산출물**:
   - `database.py`: MongoDB 연결 및 세션 관리
   - `vector_store.py`: Qdrant 클라이언트 및 컬렉션 관리
@@ -40,128 +40,125 @@
 - **의존성**: 1.1 완료
 - **우선순위**: 최고
 
-#### 1.3 공통 스키마 정의
-- **작업**: 모듈간 공유할 데이터 모델 정의
-- **산출물**:
-  - `infra/core/base_schemas.py`: BaseModel, 공통 Enum 정의
-  - 각 모듈별 `schema.py` 기본 구조 생성
-- **의존성**: 1.2 완료
-- **우선순위**: 최고
+#### 1.3 공통 스키마 정의(사용하지 않음)
 
 #### 1.4 로깅 설정
 - **작업**: 기본 로깅 구성 (OpenTelemetry는 선택사항)
 - **산출물**:
-  - `infra/core/logging.py`: 구조화된 로깅 설정
+  - `infra/ogging.py`: 구조화된 로깅 설정
 - **의존성**: 1.2 완료
 - **우선순위**: 보통
 
-### Phase 2: 데이터 수집 및 처리 모듈 (Data Ingestion)
+### Phase 2: 독립 검색 서비스 (Search Service)
+**목표**: Qdrant 벡터 검색 서비스 구축
+
+#### 2.1 Search 모듈 (벡터 검색) - UC-1
+- **작업**: 자연어 질의 기반 벡터 검색 서비스
+- **산출물**:
+  - `modules/search/schema.py`: SearchQuery, SearchResults 모델
+  - `modules/search/repository.py`: Qdrant/MongoDB 연동
+  - `modules/search/search_service.py`: 벡터 검색 서비스
+  - `modules/search/search_query.py`: 질의 처리 서비스
+  - `modules/search/orchestrator.py`: 검색 처리 오케스트레이터
+- **의존성**: Phase 1 완료, 기존 Qdrant 데이터 필요
+- **우선순위**: 높음
+- **검증**: `/tests/scenario/search_service_scenario.py`
+
+### Phase 3: 데이터 처리 모듈 (Data Ingestion)
 **목표**: 이메일 수집과 기본 처리 파이프라인 구축
 
-#### 2.1 Emil 모듈 (이메일 수집) - UC-1
-- **작업**: 이메일 수집 및 임베딩 처리
-- **산출물**:
-  - `modules/emil/schema.py`: EmailData, RawEmail 모델
-  - `modules/emil/repository.py`: Graph API 연동, MongoDB 저장
-  - `modules/emil/emil_collector.py`: 이메일 수집 서비스
-  - `modules/emil/emil_embedding.py`: 임베딩 생성 및 Qdrant 저장
-  - `modules/emil/orchestrator.py`: 이메일 처리 오케스트레이터
-- **의존성**: Phase 1 완료
-- **우선순위**: 최고
-- **검증**: `/tests/scenario/emil_email_collection_scenario.py`
-
-#### 2.2 Thrd 모듈 (스레드 관리) - UC-2
+#### 3.1 Thread 모듈 (스레드 관리) - UC-2
 - **작업**: 제목 프리픽스 기반 스레드 분류 및 관리
 - **산출물**:
-  - `modules/thrd/schema.py`: ThreadData, ThreadStatus 모델
-  - `modules/thrd/repository.py`: 스레드 데이터 CRUD
-  - `modules/thrd/thrd_classifier.py`: 스레드 분류 서비스
-  - `modules/thrd/thrd_manager.py`: 스레드 생성/업데이트 서비스
-  - `modules/thrd/orchestrator.py`: 스레드 처리 오케스트레이터
-- **의존성**: 2.1 완료 (이메일 데이터 필요)
+  - `modules/thread/schema.py`: ThreadData, ThreadStatus 모델
+  - `modules/thread/repository.py`: 스레드 데이터 CRUD
+  - `modules/thread/thread_classifier.py`: 스레드 분류 서비스
+  - `modules/thread/thread_manager.py`: 스레드 생성/업데이트 서비스
+  - `modules/thread/orchestrator.py`: 스레드 처리 오케스트레이터
+- **의존성**: 3.1 완료 (이메일 데이터 필요)
 - **우선순위**: 최고
-- **검증**: `/tests/scenario/thrd_classification_scenario.py`
+- **검증**: `/tests/scenario/thread_classification_scenario.py`
 
-### Phase 3: 참여자 및 상태 관리 모듈 (Participant Management)
+### Phase 4: 참여자 및 상태 관리 모듈 (member Management)
 **목표**: 참여자 추적 및 상태 관리 시스템 구축
 
-#### 3.1 Part 모듈 (참여자 관리) - UC-3
+#### 4.1 member 모듈 (참여자 관리) - UC-3
 - **작업**: 참여자 역할 매핑 및 상태 추적
 - **산출물**:
-  - `modules/part/schema.py`: ParticipantData, ParticipantRole 모델
-  - `modules/part/repository.py`: 참여자 데이터 관리
-  - `modules/part/part_tracker.py`: 참여자 상태 추적 서비스
-  - `modules/part/part_mapper.py`: 역할 매핑 서비스
-  - `modules/part/orchestrator.py`: 참여자 처리 오케스트레이터
-- **의존성**: 2.2 완료 (스레드 정보 필요)
+  - `modules/member/schema.py`: memberData, memberRole 모델
+  - `modules/member/repository.py`: 참여자 데이터 관리
+  - `modules/member/member_tracker.py`: 참여자 상태 추적 서비스
+  - `modules/member/member_mapper.py`: 역할 매핑 서비스
+  - `modules/member/orchestrator.py`: 참여자 처리 오케스트레이터
+- **의존성**: 3.2 완료 (스레드 정보 필요)
 - **우선순위**: 높음
-- **검증**: `/tests/scenario/part_tracking_scenario.py`
+- **검증**: `/tests/scenario/member_tracking_scenario.py`
 
-#### 3.2 Dlne 모듈 (마감일 관리) - UC-4
+#### 4.2 Deadline 모듈 (마감일 관리) - UC-4
 - **작업**: 마감일 모니터링 및 기본 알림 시스템
 - **산출물**:
-  - `modules/dlne/schema.py`: DeadlinePolicy, OverdueParticipant 모델
-  - `modules/dlne/repository.py`: 마감일 데이터 관리
-  - `modules/dlne/dlne_watcher.py`: 마감일 모니터링 서비스
-  - `modules/dlne/dlne_notifier.py`: 기본 로그 알림 (이메일 알림 선택사항)
-  - `modules/dlne/orchestrator.py`: 마감일 처리 오케스트레이터
-- **의존성**: 3.1 완료 (참여자 상태 필요)
+  - `modules/deadline/schema.py`: DeadlinePolicy, Overduemember 모델
+  - `modules/deadline/repository.py`: 마감일 데이터 관리
+  - `modules/deadline/deadline_watcher.py`: 마감일 모니터링 서비스
+  - `modules/deadline/deadline_notifier.py`: 기본 로그 알림 (이메일 알림 선택사항)
+  - `modules/deadline/orchestrator.py`: 마감일 처리 오케스트레이터
+- **의존성**: 4.1 완료 (참여자 상태 필요)
 - **우선순위**: 높음
-- **검증**: `/tests/scenario/dlne_monitoring_scenario.py`
+- **검증**: `/tests/scenario/deadline_monitoring_scenario.py`
 
-### Phase 4: 분석 및 완료 처리 모듈 (Analysis & Completion)
+### Phase 5: 분석 및 완료 처리 모듈 (Analysis & Completion)
 **목표**: 완료 판정 및 이슈 분석 기능 구현
 
-#### 4.1 Comp 모듈 (완료 판정) - UC-5
+#### 5.1 Completion 모듈 (완료 판정) - UC-5
 - **작업**: 스레드 완료 조건 판정 및 처리
 - **산출물**:
-  - `modules/comp/schema.py`: CompletionResult, SentimentResult 모델
-  - `modules/comp/repository.py`: 완료 상태 데이터 관리
-  - `modules/comp/comp_engine.py`: 완료 판정 엔진
-  - `modules/comp/comp_detector.py`: 완료 조건 감지 서비스
-  - `modules/comp/orchestrator.py`: 완료 처리 오케스트레이터
-- **의존성**: 3.2 완료 (참여자 상태, 마감일 정보 필요)
+  - `modules/completion/schema.py`: CompletionResult, SentimentResult 모델
+  - `modules/completion/repository.py`: 완료 상태 데이터 관리
+  - `modules/completion/completion_engine.py`: 완료 판정 엔진
+  - `modules/completion/completion_detector.py`: 완료 조건 감지 서비스
+  - `modules/completion/orchestrator.py`: 완료 처리 오케스트레이터
+- **의존성**: 4.2 완료 (참여자 상태, 마감일 정보 필요)
 - **우선순위**: 보통
-- **검증**: `/tests/scenario/comp_detection_scenario.py`
+- **검증**: `/tests/scenario/completion_detection_scenario.py`
 
-#### 4.2 Isue 모듈 (이슈 분석) - UC-6
+#### 5.2 Issue 모듈 (이슈 분석) - UC-6
 - **작업**: 의미적 이슈 추출 및 태깅
 - **산출물**:
-  - `modules/isue/schema.py`: IssueTag, SentimentType 모델
-  - `modules/isue/repository.py`: 이슈 데이터 관리
-  - `modules/isue/isue_extractor.py`: 이슈 추출 서비스
-  - `modules/isue/isue_tagger.py`: 태깅 처리 서비스
-  - `modules/isue/orchestrator.py`: 이슈 분석 오케스트레이터
-- **의존성**: 2.1 완료 (이메일 임베딩 필요), OpenAI API 연동
+  - `modules/issue/schema.py`: IssueTag, SentimentType 모델
+  - `modules/issue/repository.py`: 이슈 데이터 관리
+  - `modules/issue/issue_extractor.py`: 이슈 추출 서비스
+  - `modules/issue/issue_tagger.py`: 태깅 처리 서비스
+  - `modules/issue/orchestrator.py`: 이슈 분석 오케스트레이터
+- **의존성**: 3.1 완료 (이메일 임베딩 필요), OpenAI API 연동
 - **우선순위**: 보통
-- **검증**: `/tests/scenario/isue_extraction_scenario.py`
+- **검증**: `/tests/scenario/issue_extraction_scenario.py`
 
-### Phase 5: 사용자 인터페이스 모듈 (User Interface)
-**목표**: 검색, 대시보드, 린트 기능 구현
+### Phase 6: 사용자 인터페이스 모듈 (User Interface)
+**목표**: 대시보드, 검증 기능 구현
 
-#### 5.1 Dash 모듈 (대시보드) - UC-7
+#### 6.1 Dashboard 모듈 (대시보드) - UC-7
 - **작업**: 기본 대시보드 및 검색 인터페이스
 - **산출물**:
-  - `modules/dash/schema.py`: DashboardData, SearchQuery 모델
-  - `modules/dash/repository.py`: 대시보드 데이터 집계
-  - `modules/dash/dash_service.py`: 대시보드 API 서비스
-  - `modules/dash/dash_search.py`: 기본 검색 서비스
-  - `modules/dash/orchestrator.py`: 대시보드 오케스트레이터
-- **의존성**: Phase 2-4 대부분 완료 (모든 데이터 필요)
+  - `modules/dashboard/schema.py`: DashboardData, SearchQuery 모델
+  - `modules/dashboard/repository.py`: 대시보드 데이터 집계
+  - `modules/dashboard/dashboard_service.py`: 대시보드 API 서비스
+  - `modules/dashboard/dashboard_search.py`: 기본 검색 서비스
+  - `modules/dashboard/orchestrator.py`: 대시보드 오케스트레이터
+- **의존성**: Phase 3-5 대부분 완료 (모든 데이터 필요)
 - **우선순위**: 보통
-- **검증**: `/tests/scenario/dash_interface_scenario.py`
+- **검증**: `/tests/scenario/dashboard_interface_scenario.py`
 
-#### 5.2 Lint 모듈 (형식 검사) - UC-8
+#### 6.2 Validation 모듈 (형식 검사) - UC-8
 - **작업**: 이메일 형식 검증 및 기본 정정 제안
 - **산출물**:
-  - `modules/lint/schema.py`: ValidationResult, Correction 모델
-  - `modules/lint/repository.py`: 검증 규칙 관리
-  - `modules/lint/lint_checker.py`: 형식 검증 서비스
-  - `modules/lint/lint_corrector.py`: 기본 정정 제안 서비스
-  - `modules/lint/orchestrator.py`: 린트 처리 오케스트레이터
+  - `modules/validation/schema.py`: ValidationResult, Correction 모델
+  - `modules/validation/repository.py`: 검증 규칙 관리
+  - `modules/validation/validation_checker.py`: 형식 검증 서비스
+  - `modules/validation/validation_corrector.py`: 기본 정정 제안 서비스
+  - `modules/validation/orchestrator.py`: 검증 처리 오케스트레이터
 - **의존성**: 2.1 완료 (이메일 데이터 필요)
 - **우선순위**: 낮음
-- **검증**: `/tests/scenario/lint_validation_scenario.py`
+- **검증**: `/tests/scenario/validation_scenario.py`
 
 ### Phase 6: 통합 및 배포 준비 (Integration & Deployment)
 **목표**: 전체 시스템 통합 및 기본 배포 준비
@@ -198,25 +195,25 @@
 ```
 infra/core (기반)
     ↓
-emil (UC-1) → thrd (UC-2) → part (UC-3) → dlne (UC-4) → comp (UC-5)
-    ↓              ↓              ↓              
-isue (UC-6) ←─────┴──────────────┘              
+email (UC-1) → thread (UC-2) → member (UC-3) → deadline (UC-4) → completion (UC-5)
+    ↓              ↓                  ↓              
+issue (UC-6) ←─────┴──────────────────┘              
     ↓                              
-dash (UC-7) ←─────────────────────────────────────────────┘
+dashboard (UC-7) ←─────────────────────────────────────────────┘
     ↓
-lint (UC-8) ←─────────────────────────────────────────────┘
+validation (UC-8) ←─────────────────────────────────────────────┘
     ↓
 main/orchestrator (통합) - 직접 함수 호출 방식
 ```
 
 ### 3.2 데이터 흐름 의존성 (단순화)
-- **emil → thrd**: 이메일 데이터 → 스레드 분류 (함수 직접 호출)
-- **thrd → part**: 스레드 정보 → 참여자 매핑 (함수 직접 호출)
-- **part → dlne**: 참여자 상태 → 마감일 모니터링 (함수 직접 호출)
-- **dlne → comp**: 마감일 정보 → 완료 판정 (함수 직접 호출)
-- **emil → isue**: 이메일 임베딩 → 이슈 분석 (함수 직접 호출)
-- **all → dash**: 모든 데이터 → 대시보드 집계 (DB 조회)
-- **emil → lint**: 이메일 형식 → 검증 (함수 직접 호출)
+- **email → thread**: 이메일 데이터 → 스레드 분류 (함수 직접 호출)
+- **thread → member**: 스레드 정보 → 참여자 매핑 (함수 직접 호출)
+- **member → deadline**: 참여자 상태 → 마감일 모니터링 (함수 직접 호출)
+- **deadline → completion**: 마감일 정보 → 완료 판정 (함수 직접 호출)
+- **email → issue**: 이메일 임베딩 → 이슈 분석 (함수 직접 호출)
+- **all → dashboard**: 모든 데이터 → 대시보드 집계 (DB 조회)
+- **email → validation**: 이메일 형식 → 검증 (함수 직접 호출)
 
 ## 4. 마일스톤 및 검증 기준
 
@@ -240,8 +237,8 @@ main/orchestrator (통합) - 직접 함수 호출 방식
 - [ ] Redis 캐시를 통한 상태 관리 확인
 
 **검증 방법**:
-- `emil_email_collection_scenario.py` 실행
-- `thrd_classification_scenario.py` 실행
+- `email_collection_scenario.py` 실행
+- `thread_classification_scenario.py` 실행
 - 데이터베이스 저장 상태 확인
 
 ### Milestone 3: 상태 관리 (Phase 3)
@@ -252,8 +249,8 @@ main/orchestrator (통합) - 직접 함수 호출 방식
 - [ ] 참여자 맵 업데이트 확인
 
 **검증 방법**:
-- `part_tracking_scenario.py` 실행
-- `dlne_monitoring_scenario.py` 실행
+- `member_tracking_scenario.py` 실행
+- `deadline_monitoring_scenario.py` 실행
 - 알림 로그 확인
 
 ### Milestone 4: 분석 및 완료 (Phase 4)
@@ -264,8 +261,8 @@ main/orchestrator (통합) - 직접 함수 호출 방식
 - [ ] LLM 기반 감정 분석 결과 확인
 
 **검증 방법**:
-- `comp_detection_scenario.py` 실행
-- `isue_extraction_scenario.py` 실행
+- `completion_detection_scenario.py` 실행
+- `issue_extraction_scenario.py` 실행
 - 검색 기능 검증
 
 ### Milestone 5: 사용자 인터페이스 (Phase 5)
@@ -276,8 +273,8 @@ main/orchestrator (통합) - 직접 함수 호출 방식
 - [ ] 형식 검증 및 기본 정정 제안 동작
 
 **검증 방법**:
-- `dash_interface_scenario.py` 실행
-- `lint_validation_scenario.py` 실행
+- `dashboard_interface_scenario.py` 실행
+- `validation_scenario.py` 실행
 - API 응답 확인
 
 ### Milestone 6: 시스템 통합 (Phase 6)

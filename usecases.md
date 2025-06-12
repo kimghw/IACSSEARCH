@@ -32,7 +32,7 @@
 | **주 액터**           | Participation Tracker                                         |
 | **사전조건**           | UC-2 완료, 조직 역할 매핑 테이블(이메일 → 역할)이 존재.                          |
 | **주 흐름**           | 1) `sender_address` → 역할 조회 → 2) Row 생성·업데이트(발신자=✅, 미발신자는 ❌). |
-| **확장(Extensions)** | 3-e) 미등록 도메인 → “Unknown Participant” 플래그 지정.                  |
+| **확장(Extensions)** | 3-e) 미등록 도메인 → “Unknown member” 플래그 지정.                  |
 
 ---
 

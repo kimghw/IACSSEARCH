@@ -4,7 +4,7 @@
 
 ### 1.1 프로젝트 범위
 - 9개 유즈케이스 구현 (UC-1 ~ UC-8, UC-1은 독립 검색 서비스)
-- 9개 모듈 개발 (search, email, thread, participant, deadline, completion, issue, dashboard, validation)
+- 9개 모듈 개발 (search, email, thread, member, deadline, completion, issue, dashboard, validation)
 - 인프라 및 공통 컴포넌트 구축
 - 시나리오 테스트 및 기본 배포 준비
 
@@ -31,7 +31,7 @@
 - **우선순위**: 최고
 
 #### 1.2 인프라 코어 모듈 구현
-- **작업**: `infra/core/` 패키지 구현
+- **작업**: `infra` 패키지 구현
 - **산출물**:
   - `database.py`: MongoDB 연결 및 세션 관리
   - `vector_store.py`: Qdrant 클라이언트 및 컬렉션 관리
@@ -45,7 +45,7 @@
 #### 1.4 로깅 설정
 - **작업**: 기본 로깅 구성 (OpenTelemetry는 선택사항)
 - **산출물**:
-  - `infra/core/logging.py`: 구조화된 로깅 설정
+  - `infra/ogging.py`: 구조화된 로깅 설정
 - **의존성**: 1.2 완료
 - **우선순위**: 보통
 
@@ -79,25 +79,25 @@
 - **우선순위**: 최고
 - **검증**: `/tests/scenario/thread_classification_scenario.py`
 
-### Phase 4: 참여자 및 상태 관리 모듈 (Participant Management)
+### Phase 4: 참여자 및 상태 관리 모듈 (member Management)
 **목표**: 참여자 추적 및 상태 관리 시스템 구축
 
-#### 4.1 Participant 모듈 (참여자 관리) - UC-3
+#### 4.1 member 모듈 (참여자 관리) - UC-3
 - **작업**: 참여자 역할 매핑 및 상태 추적
 - **산출물**:
-  - `modules/participant/schema.py`: ParticipantData, ParticipantRole 모델
-  - `modules/participant/repository.py`: 참여자 데이터 관리
-  - `modules/participant/participant_tracker.py`: 참여자 상태 추적 서비스
-  - `modules/participant/participant_mapper.py`: 역할 매핑 서비스
-  - `modules/participant/orchestrator.py`: 참여자 처리 오케스트레이터
+  - `modules/member/schema.py`: memberData, memberRole 모델
+  - `modules/member/repository.py`: 참여자 데이터 관리
+  - `modules/member/member_tracker.py`: 참여자 상태 추적 서비스
+  - `modules/member/member_mapper.py`: 역할 매핑 서비스
+  - `modules/member/orchestrator.py`: 참여자 처리 오케스트레이터
 - **의존성**: 3.2 완료 (스레드 정보 필요)
 - **우선순위**: 높음
-- **검증**: `/tests/scenario/participant_tracking_scenario.py`
+- **검증**: `/tests/scenario/member_tracking_scenario.py`
 
 #### 4.2 Deadline 모듈 (마감일 관리) - UC-4
 - **작업**: 마감일 모니터링 및 기본 알림 시스템
 - **산출물**:
-  - `modules/deadline/schema.py`: DeadlinePolicy, OverdueParticipant 모델
+  - `modules/deadline/schema.py`: DeadlinePolicy, Overduemember 모델
   - `modules/deadline/repository.py`: 마감일 데이터 관리
   - `modules/deadline/deadline_watcher.py`: 마감일 모니터링 서비스
   - `modules/deadline/deadline_notifier.py`: 기본 로그 알림 (이메일 알림 선택사항)
@@ -195,7 +195,7 @@
 ```
 infra/core (기반)
     ↓
-email (UC-1) → thread (UC-2) → participant (UC-3) → deadline (UC-4) → completion (UC-5)
+email (UC-1) → thread (UC-2) → member (UC-3) → deadline (UC-4) → completion (UC-5)
     ↓              ↓                  ↓              
 issue (UC-6) ←─────┴──────────────────┘              
     ↓                              
@@ -208,8 +208,8 @@ main/orchestrator (통합) - 직접 함수 호출 방식
 
 ### 3.2 데이터 흐름 의존성 (단순화)
 - **email → thread**: 이메일 데이터 → 스레드 분류 (함수 직접 호출)
-- **thread → participant**: 스레드 정보 → 참여자 매핑 (함수 직접 호출)
-- **participant → deadline**: 참여자 상태 → 마감일 모니터링 (함수 직접 호출)
+- **thread → member**: 스레드 정보 → 참여자 매핑 (함수 직접 호출)
+- **member → deadline**: 참여자 상태 → 마감일 모니터링 (함수 직접 호출)
 - **deadline → completion**: 마감일 정보 → 완료 판정 (함수 직접 호출)
 - **email → issue**: 이메일 임베딩 → 이슈 분석 (함수 직접 호출)
 - **all → dashboard**: 모든 데이터 → 대시보드 집계 (DB 조회)
@@ -249,7 +249,7 @@ main/orchestrator (통합) - 직접 함수 호출 방식
 - [ ] 참여자 맵 업데이트 확인
 
 **검증 방법**:
-- `participant_tracking_scenario.py` 실행
+- `member_tracking_scenario.py` 실행
 - `deadline_monitoring_scenario.py` 실행
 - 알림 로그 확인
 
