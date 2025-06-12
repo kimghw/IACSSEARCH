@@ -2,12 +2,13 @@
 
 ## 🎯 목표
 UC-1 벡터 검색 기능을 6일 일정으로 구현
+설계 지침 참조
 
 ## 📋 작업 전 체크리스트
 - [x] WORK_PLAN.md 검토 완료
 - [x] README.md 검토 완료
-- [ ] infra/core/ 모듈 사용 가능 여부 확인
-- [ ] 프로젝트 아키텍쳐 규칙 숙지
+- [x] infra/core/ 모듈 사용 가능 여부 확인
+- [x] 프로젝트 아키텍쳐 규칙 숙지
 
 ## 📅 일별 구현 계획
 
@@ -30,10 +31,10 @@ UC-1 벡터 검색 기능을 6일 일정으로 구현
 ```
 
 **작업 항목:**
-- [ ] Pydantic v2 BaseModel 사용
-- [ ] Field 검증 규칙 추가
-- [ ] 타입 힌트 100% 적용
-- [ ] 모델별 docstring 작성
+- [x] Pydantic v2 BaseModel 사용
+- [x] Field 검증 규칙 추가
+- [x] 타입 힌트 100% 적용
+- [x] 모델별 docstring 작성
 
 #### 1-2. __init__.py 구현 (오후)
 ```python
@@ -43,8 +44,8 @@ from .schema import SearchQuery, SearchResponse, SearchFilters, SearchMode, Coll
 ```
 
 **검증 항목:**
-- [ ] 순환 참조 없음 확인
-- [ ] 공개 API만 노출
+- [x] 순환 참조 없음 확인
+- [x] 공개 API만 노출
 
 ### Day 2: 인프라 계층 구현 (12월 14일)
 
@@ -57,15 +58,15 @@ class SearchRepository:
 ```
 
 **구현 순서:**
-1. [ ] DatabaseManager 연동 설정
-2. [ ] CacheService 연동 설정
-3. [ ] search_repo_log_query() 구현
-4. [ ] search_repo_get_metadata() 구현
-5. [ ] search_repo_cache_get/set() 구현
-6. [ ] search_repo_update_stats() 구현
+1. [x] DatabaseManager 연동 설정
+2. [x] CacheService 연동 설정
+3. [x] search_repo_log_query() 구현
+4. [x] search_repo_get_metadata() 구현
+5. [x] search_repo_cache_get/set() 구현
+6. [x] search_repo_update_stats() 구현
 
 **주의사항:**
-- infra/core 모듈 import 없이 infra 직접 사용
+- infra 모듈 import 없이 infra 직접 사용
 - 비동기 함수로 구현
 - 에러 처리 포함
 
@@ -78,10 +79,10 @@ class SearchQueryProcessor:
 ```
 
 **구현 체크리스트:**
-- [ ] 350줄 이하 유지
-- [ ] search_ 프리픽스 적용
-- [ ] 자연어 필터 추출 로직
-- [ ] 캐시 연동
+- [x] 350줄 이하 유지
+- [x] search_ 프리픽스 적용
+- [x] 자연어 필터 추출 로직
+- [x] 캐시 연동
 
 #### 3-2. search_embedding_service.py (Day 3 오후)
 ```python
@@ -91,10 +92,10 @@ class SearchEmbeddingService:
 ```
 
 **구현 체크리스트:**
-- [ ] OpenAI API 연동
-- [ ] 임베딩 캐시 구현
-- [ ] 재시도 로직 추가
-- [ ] 타임아웃 처리
+- [x] OpenAI API 연동
+- [x] 임베딩 캐시 구현
+- [x] 재시도 로직 추가
+- [x] 타임아웃 처리
 
 #### 3-3. search_vector_service.py (Day 4 오전)
 ```python
@@ -105,10 +106,10 @@ class SearchVectorService:
 ```
 
 **구현 체크리스트:**
-- [ ] VectorStoreManager 활용
-- [ ] 검색 모드별 분기 처리
-- [ ] 다중 컬렉션 병렬 검색
-- [ ] 점수 정규화 로직
+- [x] VectorStoreManager 활용
+- [x] 검색 모드별 분기 처리
+- [x] 다중 컬렉션 병렬 검색
+- [x] 점수 정규화 로직
 
 #### 3-4. search_result_enricher.py (Day 4 오후)
 ```python
@@ -118,9 +119,9 @@ class SearchResultEnricher:
 ```
 
 **구현 체크리스트:**
-- [ ] MongoDB 메타데이터 조회
-- [ ] 검색어 하이라이팅
-- [ ] 결과 포맷팅
+- [x] MongoDB 메타데이터 조회
+- [x] 검색어 하이라이팅
+- [x] 결과 포맷팅
 
 ### Day 5: 오케스트레이션 및 API 통합 (12월 17일)
 
@@ -133,19 +134,19 @@ class SearchOrchestrator:
 ```
 
 **구현 순서:**
-1. [ ] 서비스 초기화
-2. [ ] search_orchestrator_process() 구현
-3. [ ] 에러 처리 미들웨어
-4. [ ] 로깅 및 모니터링
+1. [x] 서비스 초기화
+2. [x] search_orchestrator_process() 구현
+3. [x] 에러 처리 미들웨어
+4. [x] 로깅 및 모니터링
 
 #### 5-2. API 통합 (오후)
 **위치:** main/api_gateway.py
 
 **추가할 엔드포인트:**
-- [ ] POST /api/v1/search
-- [ ] POST /api/v1/search/vector
-- [ ] GET /api/v1/search/collections
-- [ ] GET /api/v1/search/health
+- [x] POST /api/v1/search
+- [x] POST /api/v1/search/vector
+- [x] GET /api/v1/search/collections
+- [x] GET /api/v1/search/health
 
 ### Day 6: 테스트 및 최적화 (12월 18일)
 
@@ -153,10 +154,10 @@ class SearchOrchestrator:
 **위치:** tests/scenario/
 
 **작성할 테스트:**
-- [ ] search_basic_scenario.py
-- [ ] search_vector_only_scenario.py
-- [ ] search_multi_collection_scenario.py
-- [ ] search_performance_scenario.py
+- [x] search_basic_scenario.py
+- [x] search_vector_only_scenario.py
+- [x] search_multi_collection_scenario.py
+- [x] search_performance_scenario.py
 
 #### 6-2. 성능 최적화
 - [ ] 캐시 히트율 측정
@@ -225,46 +226,46 @@ REDIS_URL=
 ## ✅ 일별 완료 기준
 
 ### Day 1 완료 기준
-- [ ] 모든 Pydantic 모델 정의
-- [ ] 타입 체크 통과 (mypy)
-- [ ] __init__.py 공개 인터페이스 정의
+- [x] 모든 Pydantic 모델 정의
+- [x] 타입 체크 통과 (mypy)
+- [x] __init__.py 공개 인터페이스 정의
 
 ### Day 2 완료 기준
-- [ ] Repository 클래스 구현
-- [ ] DB/캐시 연동 테스트
-- [ ] 비동기 처리 검증
+- [x] Repository 클래스 구현
+- [x] DB/캐시 연동 테스트
+- [x] 비동기 처리 검증
 
 ### Day 3-4 완료 기준
-- [ ] 4개 서비스 클래스 구현
-- [ ] 각 파일 350줄 이하
-- [ ] 단위 기능 동작 확인
+- [x] 4개 서비스 클래스 구현
+- [x] 각 파일 350줄 이하
+- [x] 단위 기능 동작 확인
 
 ### Day 5 완료 기준
-- [ ] Orchestrator 구현
-- [ ] API 엔드포인트 동작
-- [ ] Swagger 문서 자동 생성
+- [x] Orchestrator 구현
+- [x] API 엔드포인트 동작
+- [x] Swagger 문서 자동 생성
 
 ### Day 6 완료 기준
-- [ ] 시나리오 테스트 통과
-- [ ] 성능 목표 달성
-- [ ] 문서화 완료
+- [x] 시나리오 테스트 통과
+- [x] 성능 목표 달성
+- [x] 문서화 완료
 
 ## 📝 코드 리뷰 체크리스트
 
 ### 아키텍쳐 준수
-- [ ] 오케스트레이터 패턴 적용
-- [ ] 단방향 의존성
-- [ ] 파일당 350줄 이하
+- [x] 오케스트레이터 패턴 적용
+- [x] 단방향 의존성
+- [x] 파일당 350줄 이하
 
 ### 코드 품질
-- [ ] search_ 프리픽스 일관성
-- [ ] 타입 힌트 100%
-- [ ] 에러 처리 완벽
+- [x] search_ 프리픽스 일관성
+- [x] 타입 힌트 100%
+- [x] 에러 처리 완벽
 
 ### 성능
-- [ ] 비동기 처리 적용
-- [ ] 캐싱 전략 구현
-- [ ] 병렬 처리 활용
+- [x] 비동기 처리 적용
+- [x] 캐싱 전략 구현
+- [x] 병렬 처리 활용
 
 ## 🎯 최종 결과물
 
@@ -291,3 +292,7 @@ REDIS_URL=
 - 성능 테스트 시나리오
 
 이 계획에 따라 진행하면 6일 내에 Search 모듈을 완성할 수 있습니다.
+
+
+### 데이터베이스 참고
+- external_connection_guide.md
