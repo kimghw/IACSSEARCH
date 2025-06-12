@@ -1,0 +1,195 @@
+[project]
+name = "iacsrag"
+version = "0.1.0"
+description = "International Association Correspondence Search & Reporting Analysis Gateway"
+authors = [
+    {name = "IACSRAG Team", email = "admin@iacsrag.org"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+
+dependencies = [
+    # 웹 프레임워크
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    
+    # 데이터 검증 및 스키마
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    
+    # 비동기 처리
+    "asyncio-mqtt>=0.13.0",
+    "aiofiles>=23.2.0",
+    "httpx>=0.25.0",
+    
+    # 데이터베이스
+    "motor>=3.3.0",  # MongoDB 비동기 드라이버
+    "pymongo>=4.6.0",
+    "qdrant-client>=1.7.0",
+    "redis>=5.0.0",
+    
+    # 메시지 브로커 (Kafka는 사용하지 않으므로 제외)
+    
+    # Microsoft Graph API
+    "azure-identity>=1.15.0",
+    "msgraph-sdk>=1.0.0",
+    
+    # AI/ML 및 임베딩
+    "openai>=1.3.0",
+    "tiktoken>=0.5.0",
+    
+    # 이메일 처리
+    "beautifulsoup4>=4.12.0",
+    "html2text>=2020.1.16",
+    
+    # 날짜/시간 처리
+    "python-dateutil>=2.8.0",
+    "pytz>=2023.3",
+    
+    # 환경 변수 관리
+    "python-dotenv>=1.0.0",
+    
+    # 로깅 및 모니터링 (OpenTelemetry는 사용하지 않음)
+    "structlog>=23.2.0",
+    
+    # 유틸리티
+    "click>=8.1.0",
+    "rich>=13.7.0",
+    "typer>=0.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # 개발 도구
+    "ruff>=0.1.6",
+    "mypy>=1.7.0",
+    "black>=23.11.0",
+    
+    # 테스트
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    
+    # 개발 서버
+    "watchfiles>=0.21.0",
+    
+    # 타입 스텁
+    "types-python-dateutil>=2.8.0",
+    "types-redis>=4.6.0",
+    "types-beautifulsoup4>=4.12.0",
+]
+
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.25.0",  # 테스트용 HTTP 클라이언트
+]
+
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]  # 미사용 import 허용
+"tests/**/*" = ["F401", "F811"]  # 테스트에서 미사용 import 허용
+
+[tool.black]
+target-version = ['py311']
+line-length = 100
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "motor.*",
+    "qdrant_client.*",
+    "azure.*",
+    "msgraph.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--cov=modules",
+    "--cov=infra",
+    "--cov=main",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=80",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[project.scripts]
+iacsrag = "main.cli:app"
+
+[tool.hatch.version]
+path = "main/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/infra",
+    "/modules",
+    "/main",
+    "/tests",
+    "/docs",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["infra", "modules", "main"]

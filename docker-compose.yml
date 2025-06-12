@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # MongoDB 서비스
+  mongodb:
+    image: mongo:7.0
+    container_name: iacsrag-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: iacsrag_dev
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init:/docker-entrypoint-initdb.d
+    networks:
+      - iacsrag-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Qdrant 벡터 데이터베이스
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    container_name: iacsrag-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    networks:
+      - iacsrag-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis 캐시
+  redis:
+    image: redis:7.2-alpine
+    container_name: iacsrag-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - iacsrag-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # IACSRAG 애플리케이션 (개발용)
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: iacsrag-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENVIRONMENT=development
+      - MONGODB_URL=mongodb://admin:password@mongodb:27017
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - .:/app
+      - app_logs:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - iacsrag-network
+    profiles:
+      - dev  # 개발 시에만 실행
+
+volumes:
+  mongodb_data:
+    driver: local
+    name: iacsrag_mongodb_data
+  qdrant_data:
+    driver: local
+    name: iacsrag_qdrant_data
+  redis_data:
+    driver: local
+    name: iacsrag_redis_data
+  app_logs:
+    driver: local
+    name: iacsrag_app_logs
+
+networks:
+  iacsrag-network:
+    driver: bridge
+    name: iacsrag-network
