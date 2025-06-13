@@ -21,35 +21,9 @@ class SearchQueryProcessor:
     """검색 질의 처리 전용 서비스"""
     
     def __init__(self):
-        """SearchQueryProcessor 초기화 - 의존성 없이 생성"""
+        """SearchQueryProcessor 초기화"""
         self.cache_manager: Optional[SearchCacheManager] = None
         self._initialized = False
-        
-        # 날짜 관련 패턴
-        self.date_patterns = {
-            "today": r"오늘|today",
-            "yesterday": r"어제|yesterday",
-            "this_week": r"이번\s*주|this\s*week",
-            "last_week": r"지난\s*주|last\s*week",
-            "this_month": r"이번\s*달|this\s*month",
-            "last_month": r"지난\s*달|last\s*month",
-            "date_range": r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})\s*~\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
-            "specific_date": r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})"
-        }
-        
-        # 발신자/수신자 패턴
-        self.person_patterns = {
-            "from": r"(?:from:|발신자:|보낸\s*사람:)\s*([^\s,]+)",
-            "to": r"(?:to:|수신자:|받는\s*사람:)\s*([^\s,]+)",
-            "email": r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
-        }
-        
-        # 키워드 추출 패턴
-        self.keyword_patterns = {
-            "quoted": r'"([^"]+)"',
-            "important": r"중요|important|urgent|긴급",
-            "attachment": r"첨부|attachment|attached|파일"
-        }
     
     async def set_dependencies(self, **kwargs) -> None:
         """Orchestrator에서 의존성 주입
@@ -61,6 +35,30 @@ class SearchQueryProcessor:
             self.cache_manager = kwargs['cache_manager']
             self._initialized = True
             logger.debug("SearchQueryProcessor 의존성 주입 완료")
+            
+            # 패턴 초기화
+            self.date_patterns = {
+                "today": r"오늘|today",
+                "yesterday": r"어제|yesterday",
+                "this_week": r"이번\s*주|this\s*week",
+                "last_week": r"지난\s*주|last\s*week",
+                "this_month": r"이번\s*달|this\s*month",
+                "last_month": r"지난\s*달|last\s*month",
+                "date_range": r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})\s*~\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
+                "specific_date": r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})"
+            }
+            
+            self.person_patterns = {
+                "from": r"(?:from:|발신자:|보낸\s*사람:)\s*([^\s,]+)",
+                "to": r"(?:to:|수신자:|받는\s*사람:)\s*([^\s,]+)",
+                "email": r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
+            }
+            
+            self.keyword_patterns = {
+                "quoted": r'"([^"]+)"',
+                "important": r"중요|important|urgent|긴급",
+                "attachment": r"첨부|attachment|attached|파일"
+            }
     
     def _ensure_dependencies(self) -> None:
         """의존성 주입 확인"""
