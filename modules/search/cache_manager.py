@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from infra.cache import CacheService, get_cache_service
+from infra.core import get_cache_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -73,7 +73,7 @@ class SearchCacheManager:
     
     def __init__(self):
         """SearchCacheManager 초기화"""
-        self.cache: Optional[CacheService] = None
+        self.cache = None
         self._initialized = False
         self.keys = SearchCacheKeys()
         self.ttl = SearchCacheTTL()
@@ -88,7 +88,8 @@ class SearchCacheManager:
     async def _ensure_initialized(self) -> None:
         """서비스 초기화 확인"""
         if not self._initialized:
-            self.cache = await get_cache_service()
+            self.cache = get_cache_manager()
+            await self.cache.ensure_initialized()
             self._initialized = True
             logger.info("SearchCacheManager 초기화 완료")
     
@@ -109,7 +110,7 @@ class SearchCacheManager:
             cache_key = self._generate_text_hash(text)
             key = self.keys.EMBEDDING.format(text_hash=cache_key)
             
-            cached_data = await self.cache.cache_get(key)
+            cached_data = await self.cache.get(key)
             if cached_data and isinstance(cached_data, dict):
                 embedding = cached_data.get("embedding")
                 if embedding and isinstance(embedding, list):
@@ -155,7 +156,7 @@ class SearchCacheManager:
                 "model": "text-embedding-ada-002"
             }
             
-            await self.cache.cache_set(key, cache_data, ttl=self.ttl.EMBEDDING)
+            await self.cache.set(key, cache_data, ttl=self.ttl.EMBEDDING)
             logger.debug("임베딩 캐시 저장", text_preview=text[:30])
             return True
             
@@ -177,7 +178,7 @@ class SearchCacheManager:
             cache_key = self._generate_query_hash(query_text)
             key = self.keys.PROCESSED_QUERY.format(query_hash=cache_key)
             
-            cached_data = await self.cache.cache_get(key)
+            cached_data = await self.cache.get(key)
             if cached_data:
                 self._stats["hits"] += 1
                 return cached_data
@@ -202,7 +203,7 @@ class SearchCacheManager:
             cache_key = self._generate_query_hash(query_text)
             key = self.keys.PROCESSED_QUERY.format(query_hash=cache_key)
             
-            await self.cache.cache_set(key, processed_data, ttl=self.ttl.PROCESSED_QUERY)
+            await self.cache.set(key, processed_data, ttl=self.ttl.PROCESSED_QUERY)
             return True
             
         except Exception as e:
@@ -226,7 +227,7 @@ class SearchCacheManager:
                 collection=collection
             )
             
-            cached_data = await self.cache.cache_get(key)
+            cached_data = await self.cache.get(key)
             if cached_data:
                 self._stats["hits"] += 1
                 return cached_data
@@ -254,7 +255,7 @@ class SearchCacheManager:
                 collection=collection
             )
             
-            await self.cache.cache_set(key, results, ttl=self.ttl.VECTOR_RESULTS)
+            await self.cache.set(key, results, ttl=self.ttl.VECTOR_RESULTS)
             return True
             
         except Exception as e:
@@ -270,7 +271,7 @@ class SearchCacheManager:
         
         try:
             key = self.keys.EMAIL_METADATA.format(email_id=email_id)
-            return await self.cache.cache_get(key)
+            return await self.cache.get(key)
         except Exception as e:
             logger.error("이메일 메타데이터 캐시 조회 실패", error=str(e))
             return None
@@ -285,7 +286,7 @@ class SearchCacheManager:
         
         try:
             key = self.keys.EMAIL_METADATA.format(email_id=email_id)
-            await self.cache.cache_set(key, metadata, ttl=self.ttl.EMAIL_METADATA)
+            await self.cache.set(key, metadata, ttl=self.ttl.EMAIL_METADATA)
             return True
         except Exception as e:
             logger.error("이메일 메타데이터 캐시 저장 실패", error=str(e))
@@ -297,7 +298,7 @@ class SearchCacheManager:
         
         try:
             key = self.keys.DOCUMENT_METADATA.format(doc_id=doc_id)
-            return await self.cache.cache_get(key)
+            return await self.cache.get(key)
         except Exception as e:
             logger.error("문서 메타데이터 캐시 조회 실패", error=str(e))
             return None
@@ -312,7 +313,7 @@ class SearchCacheManager:
         
         try:
             key = self.keys.DOCUMENT_METADATA.format(doc_id=doc_id)
-            await self.cache.cache_set(key, metadata, ttl=self.ttl.DOCUMENT_METADATA)
+            await self.cache.set(key, metadata, ttl=self.ttl.DOCUMENT_METADATA)
             return True
         except Exception as e:
             logger.error("문서 메타데이터 캐시 저장 실패", error=str(e))
@@ -335,7 +336,7 @@ class SearchCacheManager:
                 timestamp=timestamp
             )
             
-            await self.cache.cache_set(key, metric_data, ttl=self.ttl.PERFORMANCE_METRICS)
+            await self.cache.set(key, metric_data, ttl=self.ttl.PERFORMANCE_METRICS)
             return True
         except Exception as e:
             logger.error("성능 메트릭 캐시 저장 실패", error=str(e))
@@ -358,7 +359,7 @@ class SearchCacheManager:
                 query_id=query_id
             )
             
-            await self.cache.cache_set(key, search_data, ttl=self.ttl.RECENT_SEARCHES)
+            await self.cache.set(key, search_data, ttl=self.ttl.RECENT_SEARCHES)
             return True
         except Exception as e:
             logger.error("최근 검색 캐시 저장 실패", error=str(e))
@@ -376,7 +377,7 @@ class SearchCacheManager:
                 logger.warning("잘못된 캐시 키 형식", key=key)
                 return None
             
-            return await self.cache.cache_get(key)
+            return await self.cache.get(key)
         except Exception as e:
             logger.error("캐시 조회 실패", key=key, error=str(e))
             return None
@@ -400,7 +401,7 @@ class SearchCacheManager:
             if ttl is None:
                 ttl = 600  # 기본 10분
             
-            await self.cache.cache_set(key, value, ttl)
+            await self.cache.set(key, value, ttl)
             return True
         except Exception as e:
             logger.error("캐시 저장 실패", key=key, error=str(e))

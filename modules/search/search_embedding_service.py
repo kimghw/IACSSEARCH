@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 from openai import APIError, RateLimitError, Timeout
 
-from infra.vector_store import VectorStoreManager, get_vector_manager
+from infra.core import get_vector_store_manager
 
 from .schema import EmbeddingRequest
 from .cache_manager import SearchCacheManager, get_search_cache_manager
@@ -26,7 +26,7 @@ class SearchEmbeddingService:
     
     def __init__(self):
         """SearchEmbeddingService 초기화 - 의존성 없이 생성"""
-        self.vector_manager: Optional[VectorStoreManager] = None
+        self.vector_manager = None
         self.cache_manager: Optional[SearchCacheManager] = None
         self._initialized = False
         
@@ -78,7 +78,7 @@ class SearchEmbeddingService:
         
         # vector_manager는 직접 가져옴 (싱글톤)
         if not self.vector_manager:
-            self.vector_manager = get_vector_manager()
+            self.vector_manager = get_vector_store_manager()
         
         try:
             # 텍스트 정규화

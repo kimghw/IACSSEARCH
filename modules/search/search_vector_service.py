@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 import structlog
 from qdrant_client.models import Filter, FieldCondition, Match, Range
 
-from infra.vector_store import VectorStoreManager, get_vector_manager
+from infra.vector_store import get_vector_manager
 
 from .schema import (
     CollectionStrategy,
@@ -29,13 +29,13 @@ class SearchVectorService:
     
     def __init__(self):
         """SearchVectorService 초기화 - 의존성 없이 생성"""
-        self.vector_manager: Optional[VectorStoreManager] = None
+        self.vector_manager = None
         self.repository: Optional['SearchRepository'] = None
         self._initialized = False
         
         # 기본 설정
-        self.default_collection = "emails"
-        self.available_collections = ["emails", "documents", "messages"]
+        self.default_collection = "email_vectors"
+        self.available_collections = ["email_vectors", "documents", "messages"]
         self.max_limit = 100
         self.default_score_threshold = 0.7
         

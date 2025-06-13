@@ -31,12 +31,12 @@ async def test_search_orchestrator_process():
         # 2. 기본 검색 쿼리 생성
         print("2. 검색 쿼리 생성 중...")
         query = SearchQuery(
-            query_text="테스트 검색어",
-            search_mode=SearchMode.VECTOR_ONLY,
+            query_text="최근 한달간 IMO에 제안한 의견은 무엇인가요?",
+            search_mode=SearchMode.HYBRID,  # 하이브리드 모드로 변경
             collection_strategy=CollectionStrategy.SINGLE,
             target_collections=["email_vectors"],  # email_vectors 컬렉션 명시
             limit=5,
-            score_threshold=0.7
+            score_threshold=0.3  # 낮춘 임계값
         )
         print("✓ 검색 쿼리 생성 완료")
         

@@ -1,7 +1,7 @@
 """
 IACSRAG Qdrant 벡터 저장소 연결 및 작업 관리
 
-Qdrant 클라이언트 연결, 세션 관리 및 기본적인 벡터 작업 제공
+레이지 싱글톤 패턴으로 리팩토링됨 - 하위 호환성 유지 
 infra 아키텍쳐 지침: 연결, 초기화, 설정 및 공통 벡터 작업 담당
 """
 
@@ -14,13 +14,10 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 import openai
 import structlog
 
+from .core import get_vector_store_manager, get_infra_core
 from .config import settings
 
 logger = structlog.get_logger(__name__)
-
-# 전역 클라이언트 인스턴스들
-_qdrant_client: Optional[QdrantClient] = None
-_openai_client: Optional[openai.AsyncOpenAI] = None
 
 
 @dataclass
@@ -58,102 +55,53 @@ class SearchFilters:
 
 
 async def connect_to_qdrant() -> None:
-    """Qdrant 벡터 데이터베이스에 연결합니다."""
-    global _qdrant_client
-    
-    try:
-        logger.info("Qdrant 연결을 시작합니다", url=settings.qdrant_url)
-        
-        _qdrant_client = QdrantClient(
-            url=settings.qdrant_url,
-            timeout=30,
-            prefer_grpc=False,  # HTTP API 사용
-            check_compatibility=False  # 버전 호환성 체크 비활성화
-        )
-        
-        # 연결 테스트 - 컬렉션 목록 조회로 대체
-        try:
-            collections = _qdrant_client.get_collections()
-            logger.info(
-                "Qdrant 연결이 성공했습니다",
-                collections_count=len(collections.collections) if collections else 0
-            )
-        except Exception as e:
-            logger.warning(f"Qdrant 컬렉션 목록 조회 실패: {e}")
-            # 연결은 성공했지만 컬렉션이 없을 수 있음
-            logger.info("Qdrant 연결이 성공했습니다 (컬렉션 없음)")
-        
-    except (ResponseHandlingException, UnexpectedResponse) as e:
-        logger.error("Qdrant 연결에 실패했습니다", error=str(e))
-        raise
-    except Exception as e:
-        logger.error("Qdrant 초기화 중 예상치 못한 오류가 발생했습니다", error=str(e))
-        raise
+    """Qdrant 벡터 데이터베이스에 연결합니다. (하위 호환성 - 내부적으로 VectorStoreManager 사용)"""
+    vector_manager = get_vector_store_manager()
+    await vector_manager.ensure_initialized()
+    logger.info("Qdrant 연결 완료 (VectorStoreManager 사용)")
 
 
 async def connect_to_openai() -> None:
-    """OpenAI API 클라이언트를 초기화합니다."""
-    global _openai_client
-    
-    try:
-        logger.info("OpenAI API 클라이언트를 초기화합니다")
-        
-        if not settings.openai_api_key:
-            logger.warning("OpenAI API 키가 설정되지 않았습니다")
-            return
-            
-        _openai_client = openai.AsyncOpenAI(
-            api_key=settings.openai_api_key,
-            timeout=30.0
-        )
-        
-        logger.info("OpenAI API 클라이언트 초기화가 완료되었습니다")
-        
-    except Exception as e:
-        logger.error("OpenAI API 클라이언트 초기화 중 오류가 발생했습니다", error=str(e))
-        raise
+    """OpenAI API 클라이언트를 초기화합니다. (하위 호환성 - 내부적으로 VectorStoreManager 사용)"""
+    vector_manager = get_vector_store_manager()
+    await vector_manager.ensure_initialized()
+    logger.info("OpenAI 클라이언트 초기화 완료 (VectorStoreManager 사용)")
 
 
 async def disconnect_from_qdrant() -> None:
-    """Qdrant 연결을 해제합니다."""
-    global _qdrant_client
-    
-    if _qdrant_client:
-        logger.info("Qdrant 연결을 해제합니다")
-        _qdrant_client.close()
-        _qdrant_client = None
-        logger.info("Qdrant 연결이 해제되었습니다")
+    """Qdrant 연결을 해제합니다. (하위 호환성 - 내부적으로 VectorStoreManager 사용)"""
+    vector_manager = get_vector_store_manager()
+    await vector_manager.disconnect()
+    logger.info("Qdrant 연결 해제 완료 (VectorStoreManager 사용)")
 
 
 async def disconnect_from_openai() -> None:
-    """OpenAI 클라이언트를 해제합니다."""
-    global _openai_client
-    
-    if _openai_client:
-        logger.info("OpenAI 클라이언트를 해제합니다")
-        await _openai_client.close()
-        _openai_client = None
-        logger.info("OpenAI 클라이언트가 해제되었습니다")
+    """OpenAI 클라이언트를 해제합니다. (하위 호환성 - 내부적으로 VectorStoreManager 사용)"""
+    vector_manager = get_vector_store_manager()
+    await vector_manager.disconnect()
+    logger.info("OpenAI 클라이언트 해제 완료 (VectorStoreManager 사용)")
 
 
 def get_qdrant_client() -> QdrantClient:
-    """Qdrant 클라이언트를 반환합니다."""
-    if not _qdrant_client:
+    """Qdrant 클라이언트를 반환합니다. (하위 호환성 - 내부적으로 VectorStoreManager 사용)"""
+    vector_manager = get_vector_store_manager()
+    if not vector_manager.qdrant_client:
         raise RuntimeError("Qdrant 클라이언트가 초기화되지 않았습니다. connect_to_qdrant()를 먼저 호출하세요.")
-    return _qdrant_client
+    return vector_manager.qdrant_client
 
 
 def get_openai_client() -> openai.AsyncOpenAI:
-    """OpenAI 클라이언트를 반환합니다."""
-    if not _openai_client:
+    """OpenAI 클라이언트를 반환합니다. (하위 호환성 - 내부적으로 VectorStoreManager 사용)"""
+    vector_manager = get_vector_store_manager()
+    if not vector_manager.openai_client:
         raise RuntimeError("OpenAI 클라이언트가 초기화되지 않았습니다. connect_to_openai()를 먼저 호출하세요.")
-    return _openai_client
+    return vector_manager.openai_client
 
 
-class VectorStoreManager:
-    """벡터 저장소 작업 관리자 - 싱글톤 패턴 + 지연 초기화"""
+class VectorOperations:
+    """벡터 저장소 작업 관리자 - 레이지 싱글톤 패턴"""
     
-    _instance: Optional['VectorStoreManager'] = None
+    _instance: Optional['VectorOperations'] = None
     _initialized: bool = False
     
     def __new__(cls):
@@ -166,24 +114,24 @@ class VectorStoreManager:
             self.collection_name = settings.qdrant_collection_name
             self.vector_size = settings.qdrant_vector_size
             self.similarity_threshold = settings.search_similarity_threshold
-            self._auto_initialize()
-            VectorStoreManager._initialized = True
-    
-    def _auto_initialize(self):
-        """필요시 자동으로 연결 초기화"""
-        # VectorStoreManager는 싱글톤이므로 자동 초기화는 하지 않음
-        # 대신 SearchOrchestrator에서 명시적으로 초기화
-        logger.debug("VectorStoreManager 인스턴스 생성됨 (자동 초기화 비활성화)")
+            VectorOperations._initialized = True
+            logger.debug("VectorOperations 인스턴스 생성됨")
     
     @property
     def qdrant_client(self) -> QdrantClient:
         """Qdrant 클라이언트 반환"""
-        return get_qdrant_client()
+        vector_manager = get_vector_store_manager()
+        if not vector_manager.qdrant_client:
+            raise RuntimeError("Qdrant 클라이언트가 초기화되지 않았습니다")
+        return vector_manager.qdrant_client
     
     @property
     def openai_client(self) -> openai.AsyncOpenAI:
         """OpenAI 클라이언트 반환"""
-        return get_openai_client()
+        vector_manager = get_vector_store_manager()
+        if not vector_manager.openai_client:
+            raise RuntimeError("OpenAI 클라이언트가 초기화되지 않았습니다")
+        return vector_manager.openai_client
     
     async def create_embedding(self, text: str) -> List[float]:
         """텍스트를 벡터로 변환"""
@@ -452,9 +400,9 @@ class VectorStoreManager:
 
 
 # 전역 매니저 인스턴스
-def get_vector_manager() -> VectorStoreManager:
+def get_vector_manager() -> VectorOperations:
     """벡터 매니저 인스턴스 반환 - 싱글톤 패턴"""
-    return VectorStoreManager()
+    return VectorOperations()
 
 
 # 애플리케이션 시작/종료 시 호출할 함수들

@@ -11,9 +11,7 @@ from uuid import uuid4
 
 import structlog
 
-from infra.cache import get_cache_service
-from infra.database import get_database
-from infra.vector_store import get_vector_manager, connect_to_qdrant, connect_to_openai
+from infra.core import get_cache_manager, get_database_manager, get_vector_store_manager
 
 from .repository import SearchRepository
 from .schema import (
@@ -113,7 +111,7 @@ class SearchOrchestrator:
             
             # OpenAI 연결 확인 및 초기화  
             from infra.config import get_settings
-            from infra.vector_store import get_openai_client
+            from infra.vector_store import get_openai_client, connect_to_openai
             settings = get_settings()
             if hasattr(settings, 'openai_api_key') and settings.openai_api_key:
                 try:
@@ -131,7 +129,7 @@ class SearchOrchestrator:
                 logger.warning("OpenAI API 키가 설정되지 않음")
             
             # Qdrant 연결 확인 및 초기화
-            from infra.vector_store import get_qdrant_client
+            from infra.vector_store import get_qdrant_client, connect_to_qdrant
             try:
                 get_qdrant_client()
                 logger.debug("Qdrant 이미 연결됨")
@@ -295,7 +293,7 @@ class SearchOrchestrator:
         
         try:
             # Database 체크
-            db = get_database()
+            db = get_database_manager()
             if db:
                 health_checks["database"] = True
         except:
@@ -303,7 +301,7 @@ class SearchOrchestrator:
         
         try:
             # Cache 체크
-            cache = await get_cache_service()
+            cache = get_cache_manager()
             if cache:
                 await cache.cache_get("health_check")
                 health_checks["cache"] = True
@@ -312,7 +310,7 @@ class SearchOrchestrator:
         
         try:
             # Vector Store 체크
-            vector_manager = get_vector_manager()
+            vector_manager = get_vector_store_manager()
             if vector_manager:
                 health_checks["vector_store"] = True
         except:
@@ -416,11 +414,11 @@ class SearchOrchestrator:
             return query.target_collections
         
         if query.collection_strategy == CollectionStrategy.SINGLE:
-            return ["emails"]
+            return ["email_vectors"]  # 실제 컬렉션 이름으로 수정
         elif query.collection_strategy == CollectionStrategy.AUTO:
-            return ["emails", "documents", "messages"]
+            return ["email_vectors", "documents", "messages"]
         else:
-            return ["emails"]
+            return ["email_vectors"]
     
     def _create_empty_response(
         self,

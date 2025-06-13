@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     # 검색 설정
     search_default_limit: int = Field(default=20, description="검색 기본 제한 수")
     search_max_limit: int = Field(default=100, description="검색 최대 제한 수")
-    search_similarity_threshold: float = Field(default=0.7, description="검색 유사도 임계값")
+    search_similarity_threshold: float = Field(default=0.3, description="검색 유사도 임계값")
     search_hybrid_weight: float = Field(default=0.5, description="하이브리드 검색 가중치")
     
     # 대시보드 설정

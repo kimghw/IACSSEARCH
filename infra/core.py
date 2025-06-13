@@ -87,8 +87,8 @@ class DatabaseManager:
             logger.info("MongoDB 연결 해제")
     
     def get_database(self) -> AsyncIOMotorDatabase:
-        """데이터베이스 인스턴스 반환"""
-        if not self._initialized or not self.database:
+        """MongoDB 데이터베이스 객체 반환"""
+        if not self._initialized or self.database is None:
             raise RuntimeError("DatabaseManager가 초기화되지 않았습니다")
         return self.database
 
