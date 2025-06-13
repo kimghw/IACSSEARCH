@@ -29,12 +29,21 @@ from .search_query_processor import SearchQueryProcessor
 from .search_result_enricher import SearchResultEnricher
 from .search_vector_service import SearchVectorService
 from .search_performance_monitor import SearchPerformanceMonitor
+from .cache_manager import SearchCacheManager, get_search_cache_manager
 
 logger = structlog.get_logger(__name__)
 
 
 class SearchOrchestrator:
-    """검색 프로세스 오케스트레이터"""
+    """검색 프로세스 오케스트레이터
+    
+    레이지 싱글톤 패턴을 사용하여 공통 의존성을 관리하고
+    각 서비스에 의존성을 주입하는 중앙 관리자 역할
+    """
+    
+    # 클래스 레벨 싱글톤 인스턴스
+    _repository_instance: Optional[SearchRepository] = None
+    _cache_manager_instance: Optional[SearchCacheManager] = None
     
     def __init__(self):
         """SearchOrchestrator 초기화"""
@@ -56,16 +65,49 @@ class SearchOrchestrator:
     async def _ensure_initialized(self) -> None:
         """서비스 초기화 확인"""
         if not self._initialized:
-            # 각 서비스 초기화
+            # 1. 공통 의존성 초기화
+            await self._init_shared_dependencies()
+            
+            # 2. 각 서비스 초기화 (의존성 없이)
             self.query_processor = SearchQueryProcessor()
             self.embedding_service = SearchEmbeddingService()
             self.vector_service = SearchVectorService()
             self.result_enricher = SearchResultEnricher()
-            self.repository = SearchRepository()
+            self.repository = SearchOrchestrator._repository_instance  # 싱글톤 사용
             self.performance_monitor = SearchPerformanceMonitor()
+            
+            # 3. 각 서비스에 의존성 주입
+            await self._inject_dependencies()
             
             self._initialized = True
             logger.info("SearchOrchestrator 초기화 완료")
+    
+    async def _init_shared_dependencies(self) -> None:
+        """공통 의존성 레이지 싱글톤 초기화"""
+        # Repository 싱글톤 초기화
+        if SearchOrchestrator._repository_instance is None:
+            SearchOrchestrator._repository_instance = SearchRepository()
+            await SearchOrchestrator._repository_instance._ensure_initialized()
+            logger.debug("SearchRepository 싱글톤 인스턴스 생성")
+        
+        # CacheManager 싱글톤 초기화
+        if SearchOrchestrator._cache_manager_instance is None:
+            SearchOrchestrator._cache_manager_instance = await get_search_cache_manager()
+            logger.debug("SearchCacheManager 싱글톤 인스턴스 생성")
+    
+    async def _inject_dependencies(self) -> None:
+        """각 서비스에 의존성 주입"""
+        repo = SearchOrchestrator._repository_instance
+        cache = SearchOrchestrator._cache_manager_instance
+        
+        # 각 서비스에 필요한 의존성만 주입
+        await self.query_processor.set_dependencies(cache_manager=cache)
+        await self.embedding_service.set_dependencies(cache_manager=cache)
+        # vector_service는 현재 repository 의존성이 필요 없음
+        await self.result_enricher.set_dependencies(repository=repo)
+        await self.performance_monitor.set_dependencies(cache_manager=cache)
+        
+        logger.debug("모든 서비스에 의존성 주입 완료")
     
     # === 메인 오케스트레이션 함수 ===
     
@@ -306,11 +348,12 @@ class SearchOrchestrator:
         """
         try:
             await self.repository.search_repo_log_query(
-                query=query,
+                query_text=query,
                 results=results,
-                query_id=query_id,
+                search_mode=mode.value,
                 search_time_ms=search_time,
-                mode=mode.value
+                user_id=None,
+                error_message=None
             )
         except Exception as e:
             logger.warning("검색 로그 기록 실패", error=str(e))

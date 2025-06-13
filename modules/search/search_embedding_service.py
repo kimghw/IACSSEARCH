@@ -13,10 +13,10 @@ from typing import Any, Dict, List, Optional
 import structlog
 from openai import APIError, RateLimitError, Timeout
 
-from infra.cache import CacheService, get_cache_service
 from infra.vector_store import VectorStoreManager, get_vector_manager
 
 from .schema import EmbeddingRequest
+from .cache_manager import SearchCacheManager, get_search_cache_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -25,9 +25,9 @@ class SearchEmbeddingService:
     """임베딩 생성 전용 서비스"""
     
     def __init__(self):
-        """SearchEmbeddingService 초기화"""
+        """SearchEmbeddingService 초기화 - 의존성 없이 생성"""
         self.vector_manager: Optional[VectorStoreManager] = None
-        self.cache: Optional[CacheService] = None
+        self.cache_manager: Optional[SearchCacheManager] = None
         self._initialized = False
         
         # 설정
@@ -42,13 +42,21 @@ class SearchEmbeddingService:
         self._api_calls = 0
         self._api_errors = 0
     
-    async def _ensure_initialized(self) -> None:
-        """서비스 초기화 확인"""
-        if not self._initialized:
-            self.vector_manager = get_vector_manager()
-            self.cache = await get_cache_service()
+    async def set_dependencies(self, **kwargs) -> None:
+        """Orchestrator에서 의존성 주입
+        
+        Args:
+            cache_manager: 캐시 관리자 인스턴스
+        """
+        if 'cache_manager' in kwargs:
+            self.cache_manager = kwargs['cache_manager']
             self._initialized = True
-            logger.info("SearchEmbeddingService 초기화 완료")
+            logger.debug("SearchEmbeddingService 의존성 주입 완료")
+    
+    def _ensure_dependencies(self) -> None:
+        """의존성 주입 확인"""
+        if not self._initialized or not self.cache_manager:
+            raise RuntimeError("SearchEmbeddingService: 의존성이 주입되지 않았습니다. set_dependencies()를 먼저 호출하세요.")
     
     # === 메인 처리 함수 ===
     
@@ -66,7 +74,11 @@ class SearchEmbeddingService:
         Returns:
             임베딩 벡터
         """
-        await self._ensure_initialized()
+        self._ensure_dependencies()
+        
+        # vector_manager는 직접 가져옴 (싱글톤)
+        if not self.vector_manager:
+            self.vector_manager = get_vector_manager()
         
         try:
             # 텍스트 정규화
@@ -74,7 +86,7 @@ class SearchEmbeddingService:
             
             # 캐시 조회
             if use_cache:
-                cached_embedding = await self.search_embedding_cache_get(normalized_text)
+                cached_embedding = await self.cache_manager.cache_embedding_get(normalized_text)
                 if cached_embedding:
                     self._cache_hits += 1
                     logger.debug(
@@ -96,7 +108,7 @@ class SearchEmbeddingService:
             
             # 캐시 저장
             if use_cache:
-                await self.search_embedding_cache_set(normalized_text, embedding)
+                await self.cache_manager.cache_embedding_set(normalized_text, embedding)
             
             logger.info(
                 "임베딩 생성 완료",
@@ -116,71 +128,6 @@ class SearchEmbeddingService:
             )
             raise
     
-    # === 캐시 관리 ===
-    
-    async def search_embedding_cache_get(
-        self,
-        text: str
-    ) -> Optional[List[float]]:
-        """임베딩 캐시 조회
-        
-        Args:
-            text: 캐시 키로 사용할 텍스트
-            
-        Returns:
-            캐시된 임베딩 또는 None
-        """
-        try:
-            cache_key = await self._search_embedding_generate_cache_key(text)
-            cached_data = await self.cache.cache_get(f"search:embedding:{cache_key}")
-            
-            if cached_data and isinstance(cached_data, dict):
-                embedding = cached_data.get("embedding")
-                if embedding and isinstance(embedding, list):
-                    # 캐시 유효성 검사
-                    cached_time = cached_data.get("cached_at", 0)
-                    if time.time() - cached_time < self.cache_ttl:
-                        return embedding
-            
-            return None
-            
-        except Exception as e:
-            logger.warning("임베딩 캐시 조회 실패", error=str(e))
-            return None
-    
-    async def search_embedding_cache_set(
-        self,
-        text: str,
-        embedding: List[float]
-    ) -> bool:
-        """임베딩 캐시 저장
-        
-        Args:
-            text: 캐시 키로 사용할 텍스트
-            embedding: 저장할 임베딩
-            
-        Returns:
-            저장 성공 여부
-        """
-        try:
-            cache_key = await self._search_embedding_generate_cache_key(text)
-            cache_data = {
-                "text": text[:100],  # 텍스트 일부만 저장
-                "embedding": embedding,
-                "dimension": len(embedding),
-                "cached_at": time.time(),
-                "model": "text-embedding-ada-002"
-            }
-            
-            return await self.cache.cache_set(
-                f"search:embedding:{cache_key}",
-                cache_data,
-                ttl=self.cache_ttl
-            )
-            
-        except Exception as e:
-            logger.warning("임베딩 캐시 저장 실패", error=str(e))
-            return False
     
     # === 검증 및 최적화 ===
     
@@ -251,24 +198,6 @@ class SearchEmbeddingService:
         
         return normalized.strip()
     
-    async def _search_embedding_generate_cache_key(
-        self,
-        text: str
-    ) -> str:
-        """캐시 키 생성
-        
-        Args:
-            text: 캐시 키로 변환할 텍스트
-            
-        Returns:
-            캐시 키
-        """
-        # 텍스트 정규화 후 해시
-        normalized = text.lower().strip()
-        text_hash = hashlib.sha256(normalized.encode()).hexdigest()
-        
-        # 모델 정보 포함
-        return f"ada002_{text_hash[:16]}"
     
     async def _create_embedding_with_retry(
         self,

@@ -20,7 +20,7 @@ class SearchResultEnricher:
     """검색 결과 보강 전용 서비스"""
     
     def __init__(self):
-        """SearchResultEnricher 초기화"""
+        """SearchResultEnricher 초기화 - 의존성 없이 생성"""
         self.repository: Optional[SearchRepository] = None
         self._initialized = False
         
@@ -41,12 +41,21 @@ class SearchResultEnricher:
             "tags": "태그"
         }
     
-    async def _ensure_initialized(self) -> None:
-        """서비스 초기화 확인"""
-        if not self._initialized:
-            self.repository = SearchRepository()
+    async def set_dependencies(self, **kwargs) -> None:
+        """Orchestrator에서 의존성 주입
+        
+        Args:
+            repository: 리포지토리 인스턴스
+        """
+        if 'repository' in kwargs:
+            self.repository = kwargs['repository']
             self._initialized = True
-            logger.info("SearchResultEnricher 초기화 완료")
+            logger.debug("SearchResultEnricher 의존성 주입 완료")
+    
+    def _ensure_dependencies(self) -> None:
+        """의존성 주입 확인"""
+        if not self._initialized or not self.repository:
+            raise RuntimeError("SearchResultEnricher: 의존성이 주입되지 않았습니다. set_dependencies()를 먼저 호출하세요.")
     
     # === 메인 보강 함수 ===
     
@@ -64,7 +73,7 @@ class SearchResultEnricher:
         Returns:
             보강된 검색 결과 목록
         """
-        await self._ensure_initialized()
+        self._ensure_dependencies()
         
         if not vector_matches:
             return []

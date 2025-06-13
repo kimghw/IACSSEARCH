@@ -28,8 +28,9 @@ class SearchVectorService:
     """벡터 검색 전용 서비스"""
     
     def __init__(self):
-        """SearchVectorService 초기화"""
+        """SearchVectorService 초기화 - 의존성 없이 생성"""
         self.vector_manager: Optional[VectorStoreManager] = None
+        self.repository: Optional['SearchRepository'] = None
         self._initialized = False
         
         # 기본 설정
@@ -45,12 +46,21 @@ class SearchVectorService:
             "messages": 0.8
         }
     
-    async def _ensure_initialized(self) -> None:
-        """서비스 초기화 확인"""
+    async def set_dependencies(self, **kwargs) -> None:
+        """Orchestrator에서 의존성 주입
+        
+        Args:
+            repository: 리포지토리 인스턴스 (선택적)
+        """
+        if 'repository' in kwargs:
+            self.repository = kwargs['repository']
+        self._initialized = True
+        logger.debug("SearchVectorService 의존성 주입 완료")
+    
+    def _ensure_dependencies(self) -> None:
+        """의존성 주입 확인"""
         if not self._initialized:
-            self.vector_manager = get_vector_manager()
-            self._initialized = True
-            logger.info("SearchVectorService 초기화 완료")
+            raise RuntimeError("SearchVectorService: 의존성이 주입되지 않았습니다. set_dependencies()를 먼저 호출하세요.")
     
     # === 메인 검색 함수 ===
     
@@ -68,7 +78,11 @@ class SearchVectorService:
         Returns:
             벡터 매치 결과 목록
         """
-        await self._ensure_initialized()
+        self._ensure_dependencies()
+        
+        # vector_manager는 직접 가져옴 (싱글톤)
+        if not self.vector_manager:
+            self.vector_manager = get_vector_manager()
         
         try:
             # 검색 모드별 분기

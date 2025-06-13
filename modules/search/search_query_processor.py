@@ -11,9 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
-from infra.cache import CacheService, get_cache_service
-
 from .schema import DateRange, ProcessedQuery, SearchFilters
+from .cache_manager import SearchCacheManager, get_search_cache_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -22,8 +21,8 @@ class SearchQueryProcessor:
     """검색 질의 처리 전용 서비스"""
     
     def __init__(self):
-        """SearchQueryProcessor 초기화"""
-        self.cache: Optional[CacheService] = None
+        """SearchQueryProcessor 초기화 - 의존성 없이 생성"""
+        self.cache_manager: Optional[SearchCacheManager] = None
         self._initialized = False
         
         # 날짜 관련 패턴
@@ -52,11 +51,21 @@ class SearchQueryProcessor:
             "attachment": r"첨부|attachment|attached|파일"
         }
     
-    async def _ensure_initialized(self) -> None:
-        """서비스 초기화 확인"""
-        if not self._initialized:
-            self.cache = await get_cache_service()
+    async def set_dependencies(self, **kwargs) -> None:
+        """Orchestrator에서 의존성 주입
+        
+        Args:
+            cache_manager: 캐시 관리자 인스턴스
+        """
+        if 'cache_manager' in kwargs:
+            self.cache_manager = kwargs['cache_manager']
             self._initialized = True
+            logger.debug("SearchQueryProcessor 의존성 주입 완료")
+    
+    def _ensure_dependencies(self) -> None:
+        """의존성 주입 확인"""
+        if not self._initialized or not self.cache_manager:
+            raise RuntimeError("SearchQueryProcessor: 의존성이 주입되지 않았습니다. set_dependencies()를 먼저 호출하세요.")
     
     # === 메인 처리 함수 ===
     
@@ -74,12 +83,11 @@ class SearchQueryProcessor:
         Returns:
             ProcessedQuery: 처리된 질의 정보
         """
-        await self._ensure_initialized()
+        self._ensure_dependencies()
         
         try:
             # 캐시 확인
-            cache_key = self._search_query_generate_cache_key(query_text)
-            cached_result = await self.cache.cache_get(f"search:processed_query:{cache_key}")
+            cached_result = await self.cache_manager.cache_processed_query_get(query_text)
             
             if cached_result:
                 logger.debug("처리된 질의 캐시에서 반환", query=query_text[:50])
@@ -118,17 +126,15 @@ class SearchQueryProcessor:
                 query_type=query_type,
                 keywords=keywords,
                 processing_metadata={
-                    "cache_key": cache_key,
                     "processed_at": datetime.now().isoformat(),
-                    "has_filters": bool(extracted_filters)
+                    "has_filters": bool(extracted_filters),
                 }
             )
             
             # 캐시 저장
-            await self.cache.cache_set(
-                f"search:processed_query:{cache_key}",
-                processed_query.model_dump(),
-                ttl=3600  # 1시간
+            await self.cache_manager.cache_processed_query_set(
+                query_text,
+                processed_query.model_dump()
             )
             
             logger.info(
@@ -432,9 +438,3 @@ class SearchQueryProcessor:
         
         # 기본값
         return "general"
-    
-    def _search_query_generate_cache_key(self, query_text: str) -> str:
-        """캐시 키 생성"""
-        # 질의 텍스트의 해시값으로 캐시 키 생성
-        normalized = query_text.lower().strip()
-        return hashlib.md5(normalized.encode()).hexdigest()[:16]

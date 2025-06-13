@@ -74,6 +74,7 @@ class SearchQuery(BaseModel):
     score_threshold: float = Field(default=0.7, ge=0.0, le=1.0, description="유사도 점수 임계값")
     include_metadata: bool = Field(default=True, description="메타데이터 포함 여부")
     highlight_query: bool = Field(default=True, description="검색어 하이라이팅 여부")
+    auto_extract_filters: bool = Field(default=True, description="자연어에서 필터 자동 추출 여부")
     
     @field_validator('query_text')
     @classmethod
@@ -168,10 +169,11 @@ class SearchResponse(BaseModel):
     returned_count: int = Field(..., ge=0, description="반환된 결과 개수")
     search_time_ms: int = Field(..., ge=0, description="검색 소요 시간(ms)")
     query_id: str = Field(..., description="검색 세션 ID")
-    search_strategy: str = Field(..., description="사용된 검색 전략")
+    search_mode: SearchMode = Field(..., description="사용된 검색 모드")
     collections_searched: List[str] = Field(default_factory=list, description="검색된 컬렉션 목록")
-    filters_applied: Optional[SearchFilters] = Field(None, description="적용된 필터")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="추가 메타데이터")
+    filters_applied: bool = Field(..., description="필터 적용 여부")
+    cache_hit: bool = Field(..., description="캐시 히트 여부")
+    search_metadata: Dict[str, Any] = Field(default_factory=dict, description="검색 메타데이터")
     
     @field_validator('returned_count')
     @classmethod

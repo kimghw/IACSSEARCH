@@ -49,17 +49,41 @@ SearchOrchestrator.search_orchestrator_process()
   - search_time_ms: 검색 소요 시간
   - query_id: 검색 세션 ID
 
-## 의존성
+## 의존성 구조 (레이지 싱글톤 패턴)
+
+### 의존성 관리 아키텍쳐
+SearchOrchestrator가 레이지 싱글톤 패턴을 사용하여 공통 의존성을 관리하고, 각 서비스에 의존성을 주입하는 중앙 관리자 역할을 수행합니다.
+
+```
+SearchOrchestrator (중앙 관리자)
+├── 공통 의존성 (클래스 레벨 싱글톤)
+│   ├── SearchRepository (단일 인스턴스)
+│   └── SearchCacheManager (단일 인스턴스)
+└── 서비스별 의존성 주입
+    ├── SearchQueryProcessor ← CacheManager
+    ├── SearchEmbeddingService ← CacheManager
+    ├── SearchVectorService ← (의존성 없음)
+    ├── SearchResultEnricher ← Repository
+    └── SearchPerformanceMonitor ← CacheManager
+```
+
+### 의존성 주입 플로우
+1. **공통 의존성 초기화**: Repository와 CacheManager를 싱글톤으로 생성
+2. **서비스 생성**: 각 서비스를 의존성 없이 생성
+3. **의존성 주입**: Orchestrator가 각 서비스에 필요한 의존성만 주입
+4. **서비스 활용**: 각 서비스는 주입받은 의존성을 사용하여 작업 수행
 
 ### 내부 의존성
 - infra/core/vector_store.py (VectorStoreManager)
-- infra/core/cache.py (CacheService)
-- infra/core/database.py (DatabaseManager)
+- infra/cache.py (CacheService) 
+- infra/database.py (DatabaseManager)
+- modules/search/cache_manager.py (SearchCacheManager)
 
 ### 외부 의존성
 - OpenAI API (임베딩 생성)
 - Qdrant (벡터 검색)
 - MongoDB (메타데이터 저장)
+
 
 ## 구현 우선순위
 

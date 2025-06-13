@@ -15,10 +15,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import UpdateOne
 from pymongo.errors import PyMongoError
 
-from infra.cache import CacheService, get_cache_service
 from infra.database import get_database
 
 from .schema import SearchLog, SearchResult, SearchStats
+from .cache_manager import SearchCacheManager, get_search_cache_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -29,14 +29,14 @@ class SearchRepository:
     def __init__(self):
         """SearchRepository 초기화"""
         self.db: Optional[AsyncIOMotorDatabase] = None
-        self.cache: Optional[CacheService] = None
+        self.cache_manager: Optional[SearchCacheManager] = None
         self._initialized = False
         
     async def _ensure_initialized(self) -> None:
         """리포지토리 초기화 확인"""
         if not self._initialized:
             self.db = get_database()
-            self.cache = await get_cache_service()
+            self.cache_manager = await get_search_cache_manager()
             self._initialized = True
             logger.info("SearchRepository 초기화 완료")
     
@@ -99,8 +99,11 @@ class SearchRepository:
             )
             
             # 캐시에도 최근 검색 저장 (빠른 조회용)
-            cache_key = f"search:recent:{user_id or 'anonymous'}:{query_id}"
-            await self.cache.cache_set(cache_key, log_data, ttl=3600)  # 1시간
+            await self.cache_manager.cache_recent_search(
+                user_id or "anonymous",
+                query_id,
+                log_data
+            )
             
             return query_id
             
@@ -172,8 +175,7 @@ class SearchRepository:
             uncached_ids = []
             
             for doc_id in document_ids:
-                cache_key = f"search:metadata:{doc_id}"
-                cached_data = await self.cache.cache_get(cache_key)
+                cached_data = await self.cache_manager.cache_document_metadata_get(doc_id)
                 
                 if cached_data:
                     metadata_dict[doc_id] = cached_data
@@ -205,8 +207,7 @@ class SearchRepository:
                     metadata_dict[doc_id] = doc
                     
                     # 캐시에 저장
-                    cache_key = f"search:metadata:{doc_id}"
-                    await self.cache.cache_set(cache_key, doc, ttl=1800)  # 30분
+                    await self.cache_manager.cache_document_metadata_set(doc_id, doc)
             
             return metadata_dict
             
@@ -230,8 +231,7 @@ class SearchRepository:
         
         try:
             # 캐시에서 먼저 확인
-            cache_key = f"search:email:{email_id}"
-            cached_data = await self.cache.cache_get(cache_key)
+            cached_data = await self.cache_manager.cache_email_metadata_get(email_id)
             
             if cached_data:
                 return cached_data
@@ -243,7 +243,7 @@ class SearchRepository:
             if doc:
                 doc["_id"] = str(doc["_id"])
                 # 캐시에 저장
-                await self.cache.cache_set(cache_key, doc, ttl=3600)  # 1시간
+                await self.cache_manager.cache_email_metadata_set(email_id, doc)
                 return doc
             
             return None
@@ -269,7 +269,7 @@ class SearchRepository:
         await self._ensure_initialized()
         
         try:
-            return await self.cache.cache_get(key)
+            return await self.cache_manager.cache_get(key)
         except Exception as e:
             logger.error("캐시 조회 실패", key=key, error=str(e))
             return None
@@ -293,7 +293,7 @@ class SearchRepository:
         await self._ensure_initialized()
         
         try:
-            return await self.cache.cache_set(key, value, ttl)
+            return await self.cache_manager.cache_set(key, value, ttl)
         except Exception as e:
             logger.error("캐시 저장 실패", key=key, error=str(e))
             return False
@@ -313,7 +313,9 @@ class SearchRepository:
         await self._ensure_initialized()
         
         try:
-            return await self.cache.cache_delete(key)
+            # cache_manager는 delete 메서드가 없으므로 직접 infra cache 사용
+            # 또는 cache_manager에 delete 메서드 추가 필요
+            return await self.cache_manager.cache.cache_delete(key)
         except Exception as e:
             logger.error("캐시 삭제 실패", key=key, error=str(e))
             return False
@@ -446,9 +448,9 @@ class SearchRepository:
                 if all_response_times else 0.0
             )
             
-            # 캐시 히트율 계산 (캐시 서비스에서 가져오기)
-            cache_stats = await self.cache.health_check()
-            cache_hit_rate = 0.0  # TODO: 실제 캐시 히트율 계산 로직 추가
+            # 캐시 히트율 계산 (캐시 관리자에서 가져오기)
+            cache_stats = self.cache_manager.get_cache_stats()
+            cache_hit_rate = cache_stats.get("hit_rate", 0.0)
             
             # 인기 검색어 조회
             popular_queries = await self._get_popular_queries(limit=10)
