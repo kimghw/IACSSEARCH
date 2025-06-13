@@ -12,8 +12,8 @@ from uuid import uuid4
 import structlog
 
 from infra.cache import get_cache_service
-from infra.database import get_database_manager
-from infra.vector_store import get_vector_manager
+from infra.database import get_database
+from infra.vector_store import get_vector_manager, connect_to_qdrant, connect_to_openai
 
 from .repository import SearchRepository
 from .schema import (
@@ -84,16 +84,65 @@ class SearchOrchestrator:
     
     async def _init_shared_dependencies(self) -> None:
         """공통 의존성 레이지 싱글톤 초기화"""
-        # Repository 싱글톤 초기화
+        # 1. 외부 서비스 연결 확인 및 초기화
+        await self._ensure_external_services()
+        
+        # 2. Repository 싱글톤 초기화
         if SearchOrchestrator._repository_instance is None:
             SearchOrchestrator._repository_instance = SearchRepository()
             await SearchOrchestrator._repository_instance._ensure_initialized()
             logger.debug("SearchRepository 싱글톤 인스턴스 생성")
         
-        # CacheManager 싱글톤 초기화
+        # 3. CacheManager 싱글톤 초기화
         if SearchOrchestrator._cache_manager_instance is None:
             SearchOrchestrator._cache_manager_instance = await get_search_cache_manager()
             logger.debug("SearchCacheManager 싱글톤 인스턴스 생성")
+    
+    async def _ensure_external_services(self) -> None:
+        """외부 서비스 연결 확인 및 초기화"""
+        try:
+            # MongoDB 연결 확인 및 초기화
+            from infra.database import connect_to_mongodb, get_database
+            try:
+                get_database()
+                logger.debug("MongoDB 이미 연결됨")
+            except RuntimeError:
+                logger.info("MongoDB 연결 초기화 중...")
+                await connect_to_mongodb()
+                logger.info("MongoDB 연결 완료")
+            
+            # OpenAI 연결 확인 및 초기화  
+            from infra.config import get_settings
+            from infra.vector_store import get_openai_client
+            settings = get_settings()
+            if hasattr(settings, 'openai_api_key') and settings.openai_api_key:
+                try:
+                    # OpenAI 클라이언트가 이미 초기화되어 있는지 확인
+                    try:
+                        get_openai_client()
+                        logger.debug("OpenAI 클라이언트 이미 초기화됨")
+                    except RuntimeError:
+                        logger.info("OpenAI 클라이언트 초기화 중...")
+                        await connect_to_openai()
+                        logger.info("OpenAI 클라이언트 초기화 완료")
+                except Exception as e:
+                    logger.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
+            else:
+                logger.warning("OpenAI API 키가 설정되지 않음")
+            
+            # Qdrant 연결 확인 및 초기화
+            from infra.vector_store import get_qdrant_client
+            try:
+                get_qdrant_client()
+                logger.debug("Qdrant 이미 연결됨")
+            except RuntimeError:
+                logger.info("Qdrant 연결 초기화 중...")
+                await connect_to_qdrant()
+                logger.info("Qdrant 연결 완료")
+                
+        except Exception as e:
+            logger.warning(f"외부 서비스 초기화 중 일부 실패: {e}")
+            # 테스트 환경에서는 계속 진행
     
     async def _inject_dependencies(self) -> None:
         """각 서비스에 의존성 주입"""
@@ -103,7 +152,7 @@ class SearchOrchestrator:
         # 각 서비스에 필요한 의존성만 주입
         await self.query_processor.set_dependencies(cache_manager=cache)
         await self.embedding_service.set_dependencies(cache_manager=cache)
-        # vector_service는 현재 repository 의존성이 필요 없음
+        await self.vector_service.set_dependencies(repository=repo, cache_manager=cache)
         await self.result_enricher.set_dependencies(repository=repo)
         await self.performance_monitor.set_dependencies(cache_manager=cache)
         
@@ -150,10 +199,12 @@ class SearchOrchestrator:
                 if processed_query.extracted_filters:
                     query.filters = processed_query.extracted_filters
             
-            # 3. 임베딩 생성
-            embedding = await self.embedding_service.search_embedding_create(
-                text=processed_query.normalized_text if processed_query else query.query_text
-            )
+            # 3. 임베딩 생성 (벡터 검색이 필요한 경우에만)
+            embedding = None
+            if query.search_mode in [SearchMode.HYBRID, SearchMode.VECTOR_ONLY]:
+                embedding = await self.embedding_service.search_embedding_create(
+                    text=processed_query.normalized_text if processed_query else query.query_text
+                )
             
             # 4. 벡터 검색
             vector_matches = await self.vector_service.search_vector_find(
@@ -191,6 +242,7 @@ class SearchOrchestrator:
                 query=query.query_text,
                 results=enriched_results,
                 total_count=len(enriched_results),
+                returned_count=len(enriched_results),
                 search_time_ms=search_time,
                 query_id=query_id,
                 search_mode=query.search_mode,
@@ -243,8 +295,8 @@ class SearchOrchestrator:
         
         try:
             # Database 체크
-            db_manager = await get_database_manager()
-            if db_manager:
+            db = get_database()
+            if db:
                 health_checks["database"] = True
         except:
             pass
@@ -383,6 +435,7 @@ class SearchOrchestrator:
             query=query.query_text,
             results=[],
             total_count=0,
+            returned_count=0,
             search_time_ms=search_time,
             query_id=query_id,
             search_mode=query.search_mode,

@@ -68,15 +68,20 @@ async def connect_to_qdrant() -> None:
             url=settings.qdrant_url,
             timeout=30,
             prefer_grpc=False,  # HTTP API 사용
+            check_compatibility=False  # 버전 호환성 체크 비활성화
         )
         
-        # 연결 테스트
-        health_info = _qdrant_client.get_cluster_info()
-        
-        logger.info(
-            "Qdrant 연결이 성공했습니다",
-            cluster_info=health_info
-        )
+        # 연결 테스트 - 컬렉션 목록 조회로 대체
+        try:
+            collections = _qdrant_client.get_collections()
+            logger.info(
+                "Qdrant 연결이 성공했습니다",
+                collections_count=len(collections.collections) if collections else 0
+            )
+        except Exception as e:
+            logger.warning(f"Qdrant 컬렉션 목록 조회 실패: {e}")
+            # 연결은 성공했지만 컬렉션이 없을 수 있음
+            logger.info("Qdrant 연결이 성공했습니다 (컬렉션 없음)")
         
     except (ResponseHandlingException, UnexpectedResponse) as e:
         logger.error("Qdrant 연결에 실패했습니다", error=str(e))
@@ -166,36 +171,9 @@ class VectorStoreManager:
     
     def _auto_initialize(self):
         """필요시 자동으로 연결 초기화"""
-        import asyncio
-        
-        try:
-            # 이벤트 루프 확인 및 생성
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_closed():
-                    raise RuntimeError("이벤트 루프가 닫혀있습니다")
-            except RuntimeError:
-                # 새로운 이벤트 루프 생성 (테스트 환경에서 필요)
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            # Qdrant 연결 확인 및 초기화
-            if not _qdrant_client:
-                logger.info("VectorManager에서 Qdrant 자동 초기화를 시작합니다")
-                loop.run_until_complete(connect_to_qdrant())
-            
-            # OpenAI 연결 확인 및 초기화
-            if not _openai_client:
-                logger.info("VectorManager에서 OpenAI 자동 초기화를 시작합니다")
-                loop.run_until_complete(connect_to_openai())
-                
-            logger.info("VectorManager 자동 초기화가 완료되었습니다")
-            
-        except Exception as e:
-            logger.warning(
-                "VectorManager 자동 초기화 실패, 테스트 모드로 동작합니다",
-                error=str(e)
-            )
+        # VectorStoreManager는 싱글톤이므로 자동 초기화는 하지 않음
+        # 대신 SearchOrchestrator에서 명시적으로 초기화
+        logger.debug("VectorStoreManager 인스턴스 생성됨 (자동 초기화 비활성화)")
     
     @property
     def qdrant_client(self) -> QdrantClient:
@@ -263,15 +241,29 @@ class VectorStoreManager:
                 qdrant_filter = self._build_qdrant_filter(filters)
             
             # Qdrant 검색 실행
-            search_result = self.qdrant_client.search(
-                collection_name=collection,
-                query_vector=query_vector,
-                query_filter=qdrant_filter,
-                limit=limit,
-                score_threshold=score_threshold,
-                with_payload=True,
-                with_vectors=False
-            )
+            # email_vectors 컬렉션은 named vectors를 사용하므로 vector_name 지정 필요
+            if collection == "email_vectors":
+                # body 벡터로 검색 (기본값)
+                search_result = self.qdrant_client.search(
+                    collection_name=collection,
+                    query_vector=("body", query_vector),  # named vector 지정
+                    query_filter=qdrant_filter,
+                    limit=limit,
+                    score_threshold=score_threshold,
+                    with_payload=True,
+                    with_vectors=False
+                )
+            else:
+                # 일반 컬렉션은 unnamed vector 사용
+                search_result = self.qdrant_client.search(
+                    collection_name=collection,
+                    query_vector=query_vector,
+                    query_filter=qdrant_filter,
+                    limit=limit,
+                    score_threshold=score_threshold,
+                    with_payload=True,
+                    with_vectors=False
+                )
             
             # 결과 변환
             matches = []

@@ -246,8 +246,12 @@ class SearchEmbeddingService:
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(5)
                     
-            except Timeout as e:
-                self._api_errors += 1
+            except Exception as e:
+                # Timeout 및 기타 예외 처리
+                if "timeout" in str(e).lower() or "Timeout" in str(type(e).__name__):
+                    self._api_errors += 1
+                else:
+                    self._api_errors += 1
                 last_error = e
                 logger.warning(
                     "OpenAI API 타임아웃",

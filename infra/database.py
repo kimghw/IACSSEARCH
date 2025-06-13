@@ -76,7 +76,7 @@ def get_mongodb_client() -> AsyncIOMotorClient:
 
 def get_database() -> AsyncIOMotorDatabase:
     """현재 데이터베이스를 반환합니다."""
-    if not _database:
+    if _database is None:
         raise RuntimeError("데이터베이스가 초기화되지 않았습니다. connect_to_mongodb()를 먼저 호출하세요.")
     return _database
 

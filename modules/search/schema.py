@@ -58,6 +58,7 @@ class SearchFilters(BaseModel):
     subject_keywords: Optional[List[str]] = Field(default_factory=list, description="제목 키워드 필터")
     has_attachments: Optional[bool] = Field(None, description="첨부파일 유무 필터")
     email_type: Optional[str] = Field(None, description="이메일 유형 필터")
+    thread_id: Optional[str] = Field(None, description="스레드 ID 필터")
     tags: Optional[List[str]] = Field(default_factory=list, description="태그 필터")
     custom_filters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="커스텀 필터")
 
@@ -191,6 +192,8 @@ class HealthStatus(BaseModel):
     status: str = Field(..., description="상태 (healthy/unhealthy)")
     timestamp: datetime = Field(default_factory=datetime.now, description="체크 시간")
     version: str = Field(default="1.0.0", description="서비스 버전")
+    checks: Dict[str, bool] = Field(default_factory=dict, description="개별 체크 결과")
+    stats: Dict[str, Any] = Field(default_factory=dict, description="통계 정보")
     dependencies: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="의존성 상태")
     metrics: Dict[str, Any] = Field(default_factory=dict, description="성능 메트릭")
     
